@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens — dark fintech theme.
+ * Chart colors were validated with the dataviz palette checks against the card surface
+ * (#0c1220): series blue/orange pass CVD & contrast; context gray #5b6983 = 3.38:1;
+ * status colors >= 3.89:1; text tokens >= 5.17:1.
+ */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+
+  --color-page: #070b14;
+  --color-surface: #0c1220;
+  --color-surface-2: #111a2c;
+  --color-surface-3: #172238;
+  --color-line: #1a2436;
+  --color-line-strong: #25324a;
+
+  --color-ink: #e8edf5;
+  --color-ink-2: #a3aec2;
+  --color-ink-3: #7c879c;
+
+  --color-accent: #10b981; /* primary bank / brand */
+  --color-accent-soft: #34d399;
+  --color-blue: #3987e5; /* series 1 — inflows, single series */
+  --color-orange: #d95926; /* series 2 — outflows */
+  --color-aqua: #199e70; /* series 3 */
+  --color-violet: #9085e9; /* generative AI surfaces */
+  --color-context: #5b6983; /* de-emphasised "rest" in emphasis charts */
+
+  --color-good: #0ca30c;
+  --color-warning: #fab219;
+  --color-serious: #ec835a;
+  --color-critical: #d03b3b;
+
+  --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -18px rgb(0 0 0 / 0.7);
+
+  --animate-fade-in: fade-in 0.35s ease-out both;
+  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-slide-in: slide-in 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(28px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgb(16 185 129 / 0.3);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #25324a transparent;
+}
+
+/* Numbers that align in columns */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Recharts chrome: recessive hairline grid & muted axis text ---- */
+.recharts-cartesian-grid line {
+  stroke: var(--color-line);
+}
+.recharts-cartesian-axis-tick-value {
+  fill: var(--color-ink-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: var(--color-line-strong);
+}
+.recharts-surface:focus,
+.recharts-wrapper:focus,
+.recharts-sector:focus,
+.recharts-rectangle:focus {
+  outline: none;
+}
+
+/* ---- React Flow (ecosystem graph) ---- */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: #25324a;
+  --xy-attribution-background-color: transparent;
+  --xy-controls-button-background-color: var(--color-surface-2);
+  --xy-controls-button-background-color-hover: var(--color-surface-3);
+  --xy-controls-button-color: var(--color-ink-2);
+  --xy-controls-button-color-hover: var(--color-ink);
+  --xy-controls-button-border-color: var(--color-line-strong);
+  --xy-controls-box-shadow: none;
+}
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.react-flow__edge-textbg {
+  fill: var(--color-surface-2);
+}
+.react-flow__controls {
+  border: 1px solid var(--color-line-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
