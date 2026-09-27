@@ -1,103 +1,102 @@
-import { CalendarClock, FileLock2, Radar, Users } from "lucide-react";
+"use client";
+
+import { Calculator, Download, Ellipsis, Network, Radar, Star, Target } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
-import { InstitutionAvatar } from "@/components/ui/InstitutionAvatar";
-import { ScoreRing } from "@/components/ui/Meter";
-import { HoverPopover } from "@/components/ui/Popover";
-import { ScoreExplain } from "@/components/ui/ScoreExplain";
-import { dateBR, initials, num, relativeTime } from "@/lib/format";
-import { BAND_META, OPPORTUNITY_META } from "@/lib/labels";
+import { ButtonLink } from "@/components/ui/Button";
+import { Dropdown, MenuDivider, MenuItem } from "@/components/ui/Dropdown";
+import { BackLink } from "@/components/ui/PageHeader";
+import { api } from "@/lib/api";
+import { toggleFavorite, useFavorites } from "@/lib/favorites";
 import type { Customer360 } from "@/lib/types";
 
-export function CustomerHeader({ data }: { data: Customer360 }) {
-  const { customer, health, metrics } = data;
-  const band = BAND_META[health.band];
-  const top = data.opportunities[0];
+function Sep() {
+  return <span className="h-4 w-px bg-line-strong" aria-hidden="true" />;
+}
+
+export function OpenFinanceStatus({ consent }: { consent: Customer360["consent"] }) {
+  if (consent.expiring > 0) return <Badge tone="amber">Consentimento expirando</Badge>;
+  if (consent.active > 0) return <Badge tone="green">Open Finance ativo</Badge>;
+  return <Badge tone="gray">Sem Open Finance</Badge>;
+}
+
+export function CustomerHeader({ data, onTab }: { data: Customer360; onTab: (tab: string) => void }) {
+  const { customer } = data;
+  const favorites = useFavorites();
+  const favorite = favorites.includes(customer.customer_id);
+  const exportCustomer = useMutation({ mutationFn: () => api.downloadReport("clientes", { customer_id: [customer.customer_id] }) });
 
   return (
-    <Card className="relative overflow-hidden p-6">
-      <div className="pointer-events-none absolute -top-32 -left-24 size-80 rounded-full bg-accent/[0.07] blur-3xl" />
-      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex min-w-0 items-start gap-4">
-          <div className="grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent/70 to-blue/70 p-[2px]">
-            <div className="grid size-full place-items-center rounded-[14px] bg-[#0b1322] text-[20px] font-semibold text-ink">
-              {initials(customer.name)}
-            </div>
-          </div>
+    <div className="mb-4">
+      <BackLink href="/clientes" />
+      <div className="mt-1 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar name={customer.name} size="xl" variant="light" />
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-[26px] leading-tight font-semibold tracking-tight text-ink">{customer.name}</h1>
-              <Badge>{customer.segment}</Badge>
-              {data.segment && (
-                <Badge className="bg-blue/10 text-[#8fb9f0] ring-blue/20" title={data.segment.description}>
-                  <Users className="size-3" /> {data.segment.name}
-                </Badge>
-              )}
-            </div>
-            <div className="mt-1 text-[13px] text-ink-3">
-              {customer.customer_id} · {customer.age_range} anos · {customer.occupation_category} · {customer.state}
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px]">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-ink-2">
-                <CalendarClock className="size-3.5 text-ink-3" /> Cliente desde {dateBR(customer.relationship_since)} ({num(customer.tenure_years, 1)} anos)
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-ink-2">
-                Salário em <InstitutionAvatar institution={customer.primary_bank} size="xs" /> {customer.primary_bank.short_name}
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-ink-2">
-                <FileLock2 className="size-3.5 text-accent" />
-                {data.consent.active + data.consent.expiring} consentimentos ativos
-                {data.consent.expiring > 0 && <span className="text-warning">· {data.consent.expiring} expirando</span>}
-                <span className="text-ink-3">· sincronizado {relativeTime(data.last_sync_at)}</span>
-              </span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <h1 className="text-[26px] leading-tight font-bold tracking-tight text-heading">{customer.name}</h1>
+              <OpenFinanceStatus consent={data.consent} />
               {data.anomaly.is_anomaly && (
-                <Badge className="bg-violet/12 text-[#c9c3f7] ring-violet/25" title={data.anomaly.reasons.join(" · ")}>
-                  <Radar className="size-3" /> Comportamento atípico
+                <Badge tone="violet" title={data.anomaly.reasons.join(" · ")}>
+                  <Radar className="size-3.5" /> Comportamento atípico
                 </Badge>
               )}
+              {favorite && <Star className="size-4 fill-[#f5b301] text-[#f5b301]" aria-label="Favorito" />}
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] text-ink-2">
+              <span className="tnum">{customer.customer_id}</span>
+              <Sep />
+              <span>{customer.age_range} anos</span>
+              <Sep />
+              <span>{customer.occupation_category}</span>
+              <Sep />
+              <span>{customer.state}</span>
             </div>
           </div>
         </div>
-
-        <div className="flex shrink-0 gap-3">
-          <div className="flex items-center gap-4 rounded-xl border border-line bg-surface-2/60 px-4 py-3">
-            <ScoreRing value={health.score} color={band.color} size={68} label={`Financial Health ${health.score}`} />
-            <div>
-              <div className="text-[12px] font-medium text-ink-2">Financial Health</div>
-              <div className={`text-[14px] font-semibold ${band.text}`}>{band.label}</div>
-              <HoverPopover
-                width={360}
-                trigger={<span className="text-[11.5px] text-ink-3 underline decoration-dotted underline-offset-2">Como é calculado</span>}
-              >
-                <div className="mb-2 text-[12.5px] font-medium text-ink-2">Composição do score ({health.score}/100)</div>
-                <div className="space-y-1.5">
-                  {health.components.map((c) => (
-                    <div key={c.key} className="flex justify-between gap-3 text-[12.5px]">
-                      <span className="text-ink-2">
-                        {c.label} <span className="text-ink-3">({c.display})</span>
-                      </span>
-                      <span className="tnum shrink-0 text-ink">+{num(c.points, 1)}</span>
-                    </div>
-                  ))}
-                </div>
-              </HoverPopover>
-            </div>
-          </div>
-          {top && (
-            <div className="flex items-center gap-4 rounded-xl border border-accent/25 bg-accent/[0.04] px-4 py-3">
-              <ScoreRing value={top.score} color="var(--color-accent)" size={68} label={`Opportunity Score ${top.score}`} />
-              <div>
-                <div className="text-[12px] font-medium text-ink-2">Opportunity Score</div>
-                <div className="text-[14px] font-semibold text-accent-soft">{OPPORTUNITY_META[top.type].label}</div>
-                <div className="text-[11.5px] text-ink-3">
-                  <ScoreExplain score={top.score} size="sm" title={top.type_label} factors={top.score_breakdown} reasons={top.evidence} />{" "}
-                  · {metrics.opportunities_count} oportunidade{metrics.opportunities_count === 1 ? "" : "s"}
-                </div>
-              </div>
-            </div>
-          )}
+        <div className="flex shrink-0 items-center gap-2.5">
+          <Dropdown
+            label="Mais ações"
+            width={250}
+            triggerClassName="grid size-11 place-items-center rounded-lg border border-line-strong bg-white text-ink-2 hover:bg-surface-2"
+            trigger={<Ellipsis className="size-5" />}
+          >
+            {(close) => (
+              <>
+                <MenuItem icon={Target} onSelect={() => {
+                    onTab("oportunidades");
+                    close();
+                  }}>
+                  Ver oportunidades
+                </MenuItem>
+                <MenuItem icon={Network} onSelect={() => {
+                    onTab("open-finance");
+                    close();
+                  }}>
+                  Mapa do ecossistema
+                </MenuItem>
+                <MenuItem icon={Download} onSelect={() => {
+                    exportCustomer.mutate();
+                    close();
+                  }}>
+                  Exportar dados (CSV)
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem icon={Star} onSelect={() => {
+                    toggleFavorite(customer.customer_id);
+                    close();
+                  }}>
+                  {favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                </MenuItem>
+              </>
+            )}
+          </Dropdown>
+          <ButtonLink variant="primary" size="lg" href={`/simulador?customer=${customer.customer_id}`} className="h-11 px-6">
+            <Calculator className="size-4" /> Gerar proposta
+          </ButtonLink>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

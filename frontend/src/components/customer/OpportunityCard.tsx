@@ -1,36 +1,35 @@
 import { ArrowRight, CircleCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { IconTile } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
-import { ScoreRing } from "@/components/ui/Meter";
-import { OpportunityTag, PriorityBadge, StatusBadge } from "@/components/ui/OpportunityTag";
+import { OpportunityPill, PriorityBadge, StatusBadge } from "@/components/ui/OpportunityTag";
 import { ScoreExplain } from "@/components/ui/ScoreExplain";
 import { brl } from "@/lib/format";
 import { OPPORTUNITY_META } from "@/lib/labels";
 import type { Opportunity } from "@/lib/types";
 
 export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+  const meta = OPPORTUNITY_META[opportunity.type];
   const support = opportunity.evidence.filter((e) => e.kind !== "context").slice(0, 3);
   return (
-    <Card className="flex h-full flex-col p-5 transition-colors hover:border-white/12">
+    <Card className="flex h-full flex-col p-5 transition-shadow hover:shadow-pop">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <OpportunityTag type={opportunity.type} />
-          <h3 className="mt-2 text-[15px] leading-snug font-semibold text-ink">{opportunity.title}</h3>
+        <div className="flex min-w-0 items-start gap-3">
+          <IconTile icon={meta.icon} tone={meta.tone} size="md" className="rounded-xl" />
+          <div className="min-w-0">
+            <OpportunityPill type={opportunity.type} size="sm" />
+            <h3 className="mt-1.5 text-[15px] leading-snug font-semibold text-ink">{opportunity.title}</h3>
+          </div>
         </div>
-        <div className="flex flex-col items-center">
-          <ScoreRing value={opportunity.score} color="var(--color-accent)" size={56} stroke={5} label={`Opportunity Score ${opportunity.score}`} />
-        </div>
+        <ScoreExplain score={opportunity.score} size="lg" title={opportunity.type_label} factors={opportunity.score_breakdown} reasons={opportunity.evidence} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <PriorityBadge priority={opportunity.priority} />
         <StatusBadge status={opportunity.status} />
-        <span className="text-[12px] text-ink-3">
-          Score <ScoreExplain score={opportunity.score} size="sm" title={opportunity.type_label} factors={opportunity.score_breakdown} reasons={opportunity.evidence} />
-        </span>
       </div>
       <div className="mt-4">
-        <div className="text-[11.5px] text-ink-3">{OPPORTUNITY_META[opportunity.type].valueLabel}</div>
-        <div className="text-[22px] font-semibold tracking-tight text-ink">{brl(opportunity.estimated_value)}</div>
+        <div className="text-[12px] text-ink-3">{meta.valueLabel}</div>
+        <div className="tnum text-[22px] font-bold tracking-tight text-[#0a1440]">{brl(opportunity.estimated_value)}</div>
       </div>
       <p className="mt-2 text-[13px] leading-snug text-ink-2">{opportunity.summary}</p>
       <ul className="mt-3 space-y-1.5">
@@ -47,7 +46,7 @@ export function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
       </ul>
       <Link
         href={`/oportunidades/${opportunity.opportunity_id}`}
-        className="mt-auto inline-flex items-center gap-1 pt-4 text-[12.5px] font-medium text-accent-soft hover:text-accent"
+        className="mt-auto inline-flex items-center gap-1 pt-4 text-[13px] font-semibold text-primary-ink hover:underline"
       >
         Ver evidências completas <ArrowRight className="size-3.5" />
       </Link>

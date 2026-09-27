@@ -11,12 +11,12 @@ export type BarListItem = {
 };
 
 /**
- * Horizontal bars for nominal categories: one series, one hue (never colored by value).
- * Values are printed at the bar tip, so the chart doubles as its own table view.
+ * Horizontal bars for nominal categories: one series, one hue (never colored by value),
+ * on a light track. Values are printed next to each bar, so the chart is its own table.
  */
 export function BarList({
   items,
-  color = "var(--color-blue)",
+  color = "var(--color-primary)",
   highlightColor = "var(--color-accent)",
   className,
   onSelect,
@@ -35,17 +35,17 @@ export function BarList({
         const content = (
           <>
             <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[13px]">
-              <span className="min-w-0 truncate text-ink-2">{item.label}</span>
+              <span className="min-w-0 truncate text-ink">{item.label}</span>
               {item.secondary && <span className="tnum shrink-0 text-[12px] text-ink-3">{item.secondary}</span>}
             </div>
-            <div className="flex items-center gap-2.5">
-              <div className="h-2 flex-1">
+            <div className="flex items-center gap-3">
+              <div className="h-2.5 flex-1 overflow-hidden rounded-[3px] bg-[#e8eef7]">
                 <div
-                  className="h-full rounded-r-[4px] transition-[width] duration-700"
+                  className="h-full rounded-[3px] transition-[width] duration-700"
                   style={{ width: `${width}%`, backgroundColor: item.highlight ? highlightColor : color }}
                 />
               </div>
-              <span className="tnum w-[92px] shrink-0 text-right text-[13px] font-semibold text-ink">{item.display}</span>
+              <span className="tnum w-[96px] shrink-0 text-right text-[13px] font-semibold text-ink">{item.display}</span>
             </div>
           </>
         );
@@ -53,8 +53,9 @@ export function BarList({
           <li key={item.key}>
             {onSelect ? (
               <button
+                type="button"
                 onClick={() => onSelect(item.key)}
-                className="-mx-2 block w-[calc(100%+1rem)] rounded-lg px-2 py-1 text-left transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+                className="-mx-2 block w-[calc(100%+1rem)] rounded-lg px-2 py-1 text-left transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none"
               >
                 {content}
               </button>

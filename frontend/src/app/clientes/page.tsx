@@ -1,26 +1,47 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Activity, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Radar, Search, Sparkles, X } from "lucide-react";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Activity,
+  ArrowDown,
+  ArrowUp,
+  Calculator,
+  ChevronsUpDown,
+  Download,
+  Ellipsis,
+  ExternalLink,
+  Radar,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Target,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { ConsentPill } from "@/components/customer/ConsentPill";
+import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
+import { Button, buttonClass } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { FilterSelect } from "@/components/ui/FilterSelect";
-import { InstitutionStack } from "@/components/ui/InstitutionAvatar";
+import { Dropdown, MenuDivider, MenuItem } from "@/components/ui/Dropdown";
+import { FilterSelect, SearchInput } from "@/components/ui/FilterSelect";
 import { LazyScoreExplain } from "@/components/ui/LazyScoreExplain";
-import { Meter } from "@/components/ui/Meter";
-import { OpportunityTag } from "@/components/ui/OpportunityTag";
+import { OpportunityTiles } from "@/components/ui/OpportunityTag";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Pagination } from "@/components/ui/Pagination";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
-import { api } from "@/lib/api";
-import { brl, num } from "@/lib/format";
-import { useInstitutions, useMeta } from "@/lib/hooks";
-import { BAND_META, DEBT_LEVEL_META, OPPORTUNITY_META, OPPORTUNITY_ORDER, SEGMENTS } from "@/lib/labels";
+import { Tabs } from "@/components/ui/Tabs";
+import { ApiError, api } from "@/lib/api";
+import { addFavorites, toggleFavorite, useFavorites } from "@/lib/favorites";
+import { useCan, useMeta } from "@/lib/hooks";
+import { BAND_META, OPPORTUNITY_META, OPPORTUNITY_ORDER, SEGMENTS } from "@/lib/labels";
 import { useRole } from "@/lib/role";
 import type { CustomerListItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 10;
 
 const RANGES = {
   assets: [
@@ -40,23 +61,33 @@ const RANGES = {
     { value: "3-4", label: "3 a 4 bancos" },
     { value: "5-", label: "5 ou mais bancos" },
   ],
+  score: [
+    { value: "80-100", label: "Score 80 ou mais" },
+    { value: "60-79", label: "Score 60 a 79" },
+    { value: "45-59", label: "Score 45 a 59" },
+    { value: "0-0", label: "Sem oportunidade" },
+  ],
 };
 
-const SORTS: { key: string; label: string }[] = [
-  { key: "opportunity_score", label: "Opportunity Score" },
-  { key: "opportunity_value", label: "Valor em oportunidades" },
-  { key: "health_score", label: "Financial Health" },
-  { key: "total_assets", label: "Patrimônio" },
-  { key: "total_debt", label: "Dívida" },
-  { key: "monthly_income", label: "Renda" },
-  { key: "institutions_count", label: "Instituições" },
-  { key: "name", label: "Nome" },
+const SORTS = [
+  { value: "opportunity_score", label: "Opportunity Score" },
+  { value: "opportunity_value", label: "Valor em oportunidades" },
+  { value: "health_score", label: "Saúde financeira" },
+  { value: "total_assets", label: "Patrimônio" },
+  { value: "total_debt", label: "Dívida" },
+  { value: "monthly_income", label: "Renda" },
+  { value: "institutions_count", label: "Instituições" },
+  { value: "name", label: "Nome" },
 ];
 
+// Filters kept in the URL (shareable, back-button friendly). "More filters" are the advanced ones.
 const FILTER_KEYS = [
-  "search", "min_score", "opportunity_type", "institution_id", "min_assets", "max_assets", "min_income", "max_income",
+  "search", "min_score", "max_score", "opportunity_type", "institution_id", "min_assets", "max_assets", "min_income", "max_income",
   "debt_level", "min_institutions", "max_institutions", "health_band", "segment", "segment_id", "signal", "insight", "anomaly",
 ];
+const ADVANCED_KEYS = ["opportunity_type", "institution_id", "min_assets", "max_assets", "min_income", "max_income", "debt_level", "min_institutions", "max_institutions", "health_band", "segment_id"];
+
+type Tab = "todos" | "oportunidades" | "alertas" | "novos" | "favoritos";
 
 export default function CustomersPage() {
   return (
@@ -71,9 +102,12 @@ function CustomersView() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const institutions = useInstitutions();
   const { data: meta } = useMeta();
+  const favorites = useFavorites();
+  const canExport = useCan("customers:read");
   const [searchText, setSearchText] = useState(params.get("search") ?? "");
+  const [showMore, setShowMore] = useState(() => ADVANCED_KEYS.some((k) => params.get(k)));
+  const [selected, setSelected] = useState<string[]>([]);
 
   const update = (changes: Record<string, string | string[] | null>) => {
     const next = new URLSearchParams(params.toString());
@@ -83,6 +117,7 @@ function CustomersView() {
       else if (value) next.set(key, value);
     }
     if (!("page" in changes)) next.delete("page");
+    setSelected([]);
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   };
 
@@ -104,29 +139,51 @@ function CustomersView() {
     update({ [minKey]: min && min !== "0" ? min : value ? "0" : null, [maxKey]: max || null });
   };
 
+  const tab = (params.get("tab") as Tab) ?? "todos";
   const sort = params.get("sort") ?? "opportunity_score";
   const order = params.get("order") ?? "desc";
   const page = Number(params.get("page") ?? 1);
 
-  const apiParams = useMemo(() => {
-    const out: Record<string, string | string[]> = { sort, order, page: String(page), page_size: "25" };
+  const filters = useMemo(() => {
+    const out: Record<string, string | string[]> = {};
     for (const key of FILTER_KEYS) {
       const values = params.getAll(key);
       if (values.length > 1) out[key] = values;
       else if (values.length === 1 && values[0] !== "") out[key] = values[0];
     }
     return out;
-  }, [params, sort, order, page]);
+  }, [params]);
 
+  const tabFilter = useMemo((): Record<string, string | string[]> => {
+    if (tab === "oportunidades") return { has_opportunities: "true" };
+    if (tab === "alertas") return { has_signals: "true" };
+    if (tab === "novos") return { new_connections: "true" };
+    if (tab === "favoritos") return { customer_id: favorites };
+    return {};
+  }, [tab, favorites]);
+
+  const noFavorites = tab === "favoritos" && favorites.length === 0;
   const query = useQuery({
-    queryKey: ["customers", role, apiParams],
-    queryFn: () => api.customers(apiParams),
+    queryKey: ["customers", role, filters, tabFilter, sort, order, page],
+    queryFn: () => api.customers({ ...filters, ...tabFilter, sort, order, page: String(page), page_size: String(PAGE_SIZE) }),
+    placeholderData: keepPreviousData,
+    enabled: !noFavorites,
+  });
+  const counts = useQuery({
+    queryKey: ["customer-tabs", role, filters],
+    queryFn: () => api.customerTabCounts(filters),
     placeholderData: keepPreviousData,
   });
   const insights = useQuery({ queryKey: ["insights", role], queryFn: api.insights, enabled: !!params.get("insight") });
+  const exportList = useMutation({ mutationFn: (extra: Record<string, string | string[]>) => api.downloadReport("clientes", extra) });
+
   const activeInsight = insights.data?.find((i) => i.insight_id === params.get("insight"));
   const signalLabel = meta?.signal_types.find((s) => s.key === params.get("signal"))?.label;
+  const advancedCount = ADVANCED_KEYS.filter((k) => params.get(k)).length;
   const hasFilters = FILTER_KEYS.some((key) => params.get(key));
+  const rows = noFavorites ? [] : (query.data?.items ?? []);
+  const pageIds = rows.map((r) => r.customer_id);
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
 
   const toggleSort = (key: string) => {
     if (sort === key) update({ order: order === "desc" ? "asc" : "desc" });
@@ -136,326 +193,313 @@ function CustomersView() {
   return (
     <div className="animate-fade-in">
       <PageHeader
-        eyebrow="Carteira"
         title="Clientes"
-        description="Pesquise e filtre a carteira. Todos os indicadores vêm dos dados Open Finance consolidados por cliente."
+        description="Gerencie e explore sua carteira com dados de Open Finance"
+        actions={
+          <Button variant="primary" onClick={() => exportList.mutate({ ...filters, ...tabFilter })} disabled={exportList.isPending || noFavorites || !canExport}>
+            <Download className="size-4" /> {exportList.isPending ? "Exportando…" : "Exportar lista"}
+          </Button>
+        }
       />
+      {exportList.error && (
+        <p className="-mt-2 mb-3 text-[13px] text-critical">{exportList.error instanceof ApiError ? exportList.error.message : "Falha na exportação."}</p>
+      )}
 
-      {/* One filter row above everything it scopes */}
-      <Card className="mb-4 p-3">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[minmax(220px,1.6fr)_repeat(5,minmax(0,1fr))]">
-          <label className="relative sm:col-span-2 lg:col-span-2 xl:col-span-1">
-            <span className="sr-only">Buscar por nome ou ID</span>
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-3" />
-            <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Nome ou ID do cliente"
-              className="h-9 w-full rounded-lg border border-line bg-surface pr-3 pl-9 text-[13px] text-ink placeholder:text-ink-3 outline-none focus:border-accent/50"
-            />
-          </label>
-          <FilterSelect
-            label="Opportunity Score"
-            value={params.get("min_score") ?? ""}
-            onChange={(v) => update({ min_score: v || null })}
-            options={[
-              { value: "80", label: "Score ≥ 80 (prioritários)" },
-              { value: "60", label: "Score ≥ 60" },
-              { value: "45", label: "Com oportunidade" },
-            ]}
-          />
-          <FilterSelect
-            label="Tipo de oportunidade"
-            value={params.get("opportunity_type") ?? ""}
-            onChange={(v) => update({ opportunity_type: v || null })}
-            options={OPPORTUNITY_ORDER.map((t) => ({ value: t, label: OPPORTUNITY_META[t].label }))}
-          />
-          <FilterSelect
-            label="Instituição"
-            value={params.get("institution_id") ?? ""}
-            onChange={(v) => update({ institution_id: v || null })}
-            options={(meta?.institutions ?? []).map((i) => ({ value: i.institution_id, label: i.name }))}
-          />
-          <FilterSelect label="Patrimônio" value={range("min_assets", "max_assets")} onChange={(v) => setRange("min_assets", "max_assets", v)} options={RANGES.assets} />
-          <FilterSelect label="Renda" value={range("min_income", "max_income")} onChange={(v) => setRange("min_income", "max_income", v)} options={RANGES.income} />
-          <FilterSelect
-            label="Endividamento"
-            value={params.get("debt_level") ?? ""}
-            onChange={(v) => update({ debt_level: v || null })}
-            options={[
-              { value: "low", label: "Endividamento baixo" },
-              { value: "moderate", label: "Endividamento moderado" },
-              { value: "high", label: "Endividamento alto" },
-            ]}
-          />
-          <FilterSelect
-            label="Quantidade de bancos"
-            value={range("min_institutions", "max_institutions")}
-            onChange={(v) => setRange("min_institutions", "max_institutions", v)}
-            options={RANGES.institutions}
-          />
-          <FilterSelect
-            label="Financial Health"
-            value={params.get("health_band") ?? ""}
-            onChange={(v) => update({ health_band: v || null })}
-            options={(["excellent", "healthy", "attention", "critical"] as const).map((b) => ({ value: b, label: `Saúde ${BAND_META[b].label.toLowerCase()}` }))}
-          />
-          <FilterSelect
-            label="Segmento"
-            value={params.get("segment") ?? ""}
-            onChange={(v) => update({ segment: v || null })}
-            options={SEGMENTS.map((s) => ({ value: s, label: s }))}
-          />
-          <FilterSelect
-            label="Segmento comportamental"
-            value={params.get("segment_id") ?? ""}
-            onChange={(v) => update({ segment_id: v || null })}
-            options={(meta?.segments ?? []).map((s) => ({ value: String(s.segment_id), label: s.name }))}
-          />
+      <Card className="overflow-hidden">
+        {/* Filter row */}
+        <div className="grid gap-3 p-5 pb-4 md:grid-cols-2 xl:grid-cols-[minmax(260px,1.6fr)_repeat(2,minmax(0,1fr))_auto]">
+          <SearchInput value={searchText} onChange={setSearchText} placeholder="Buscar por nome ou ID do cliente…" label="Buscar cliente" className="md:col-span-2 xl:col-span-1" />
+          <FilterSelect label="Todos os segmentos" value={params.get("segment") ?? ""} onChange={(v) => update({ segment: v || null })} options={SEGMENTS.map((s) => ({ value: s, label: s }))} />
+          <FilterSelect label="Todos os scores" value={range("min_score", "max_score")} onChange={(v) => setRange("min_score", "max_score", v)} options={RANGES.score} />
+          <button
+            type="button"
+            onClick={() => setShowMore((v) => !v)}
+            aria-expanded={showMore}
+            className={cn(
+              "inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-4 text-[13.5px] font-medium transition-colors",
+              showMore || advancedCount ? "border-primary/40 bg-primary-soft text-primary-ink" : "border-line-strong bg-white text-ink hover:bg-surface-2",
+            )}
+          >
+            <SlidersHorizontal className="size-4" /> Mais filtros
+            {advancedCount > 0 && <span className="tnum grid size-5 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">{advancedCount}</span>}
+          </button>
         </div>
 
-        {(activeInsight || signalLabel || params.get("anomaly") || hasFilters) && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-            {activeInsight && (
-              <Badge className="bg-accent/10 text-accent-soft ring-accent/25">
-                <Sparkles className="size-3" /> Insight: {activeInsight.title}
-                <button aria-label="Remover filtro de insight" onClick={() => update({ insight: null })} className="ml-1 hover:text-ink">
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            )}
-            {signalLabel && (
-              <Badge className="bg-warning/10 text-warning ring-warning/25">
-                <Activity className="size-3" /> Sinal: {signalLabel}
-                <button aria-label="Remover filtro de sinal" onClick={() => update({ signal: null })} className="ml-1 hover:text-ink">
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            )}
-            {params.get("anomaly") && (
-              <Badge className="bg-violet/12 text-[#c9c3f7] ring-violet/25">
-                <Radar className="size-3" /> Comportamento atípico
-                <button aria-label="Remover filtro de anomalia" onClick={() => update({ anomaly: null })} className="ml-1 hover:text-ink">
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            )}
+        {showMore && (
+          <div className="grid gap-3 border-t border-line bg-surface-2 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 animate-fade-in">
+            <FilterSelect
+              label="Tipo de oportunidade"
+              value={params.get("opportunity_type") ?? ""}
+              onChange={(v) => update({ opportunity_type: v || null })}
+              options={OPPORTUNITY_ORDER.map((t) => ({ value: t, label: OPPORTUNITY_META[t].label }))}
+            />
+            <FilterSelect
+              label="Instituição"
+              value={params.get("institution_id") ?? ""}
+              onChange={(v) => update({ institution_id: v || null })}
+              options={(meta?.institutions ?? []).map((i) => ({ value: i.institution_id, label: i.name }))}
+            />
+            <FilterSelect label="Patrimônio" value={range("min_assets", "max_assets")} onChange={(v) => setRange("min_assets", "max_assets", v)} options={RANGES.assets} />
+            <FilterSelect label="Renda" value={range("min_income", "max_income")} onChange={(v) => setRange("min_income", "max_income", v)} options={RANGES.income} />
+            <FilterSelect
+              label="Endividamento"
+              value={params.get("debt_level") ?? ""}
+              onChange={(v) => update({ debt_level: v || null })}
+              options={[
+                { value: "low", label: "Endividamento baixo" },
+                { value: "moderate", label: "Endividamento moderado" },
+                { value: "high", label: "Endividamento alto" },
+              ]}
+            />
+            <FilterSelect
+              label="Quantidade de bancos"
+              value={range("min_institutions", "max_institutions")}
+              onChange={(v) => setRange("min_institutions", "max_institutions", v)}
+              options={RANGES.institutions}
+            />
+            <FilterSelect
+              label="Saúde financeira"
+              value={params.get("health_band") ?? ""}
+              onChange={(v) => update({ health_band: v || null })}
+              options={(["excellent", "healthy", "attention", "critical"] as const).map((b) => ({ value: b, label: `Saúde ${BAND_META[b].label.toLowerCase()}` }))}
+            />
+            <FilterSelect
+              label="Segmento comportamental"
+              value={params.get("segment_id") ?? ""}
+              onChange={(v) => update({ segment_id: v || null })}
+              options={(meta?.segments ?? []).map((s) => ({ value: String(s.segment_id), label: s.name }))}
+            />
+            <FilterSelect label="Ordenar por" prefix="Ordenar por:" value={sort} onChange={(v) => update({ sort: v || "opportunity_score" })} options={SORTS} />
             {hasFilters && (
               <button
+                type="button"
                 onClick={() => {
                   setSearchText("");
-                  router.replace(pathname, { scroll: false });
+                  router.replace(tab === "todos" ? pathname : `${pathname}?tab=${tab}`, { scroll: false });
                 }}
-                className="ml-auto text-[12.5px] font-medium text-ink-3 hover:text-ink"
+                className="h-10 rounded-lg px-3 text-left text-[13px] font-semibold text-primary-ink hover:underline"
               >
                 Limpar filtros
               </button>
             )}
           </div>
         )}
-      </Card>
 
-      <Card className={cn("transition-opacity", query.isFetching && query.isPlaceholderData && "opacity-60")}>
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-          <div className="text-[13px] text-ink-2">
-            {query.data ? (
-              <>
-                <span className="font-semibold text-ink">{num(query.data.total)}</span> clientes encontrados
-              </>
-            ) : (
-              "Carregando…"
+        {(activeInsight || signalLabel || params.get("anomaly")) && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+            {activeInsight && (
+              <Badge tone="green">
+                <Sparkles className="size-3.5" /> Insight: {activeInsight.title}
+                <button aria-label="Remover filtro de insight" onClick={() => update({ insight: null })} className="ml-1 hover:opacity-70">
+                  <X className="size-3.5" />
+                </button>
+              </Badge>
+            )}
+            {signalLabel && (
+              <Badge tone="amber">
+                <Activity className="size-3.5" /> Sinal: {signalLabel}
+                <button aria-label="Remover filtro de sinal" onClick={() => update({ signal: null })} className="ml-1 hover:opacity-70">
+                  <X className="size-3.5" />
+                </button>
+              </Badge>
+            )}
+            {params.get("anomaly") && (
+              <Badge tone="violet">
+                <Radar className="size-3.5" /> Comportamento atípico
+                <button aria-label="Remover filtro de anomalia" onClick={() => update({ anomaly: null })} className="ml-1 hover:opacity-70">
+                  <X className="size-3.5" />
+                </button>
+              </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2 text-[12.5px] text-ink-3">
-            Ordenar por
-            <FilterSelect
-              label="Ordenação"
-              value={sort}
-              onChange={(v) => update({ sort: v || "opportunity_score" })}
-              options={SORTS.map((s) => ({ value: s.key, label: s.label }))}
-              className="w-[210px]"
-            />
-            <button
-              onClick={() => update({ order: order === "desc" ? "asc" : "desc" })}
-              className="grid size-9 place-items-center rounded-lg border border-line text-ink-2 hover:border-line-strong hover:text-ink"
-              aria-label={order === "desc" ? "Ordem decrescente" : "Ordem crescente"}
-            >
-              {order === "desc" ? <ArrowDown className="size-4" /> : <ArrowUp className="size-4" />}
-            </button>
-          </div>
-        </div>
-
-        {query.error ? (
-          <ErrorState error={query.error} />
-        ) : !query.data ? (
-          <div className="space-y-2 px-5 pb-5">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-12" />
-            ))}
-          </div>
-        ) : query.data.items.length === 0 ? (
-          <EmptyState title="Nenhum cliente com esses filtros" description="Ajuste ou limpe os filtros para ampliar a busca." />
-        ) : (
-          <CustomersTable rows={query.data.items} institutions={institutions} sort={sort} order={order} onSort={toggleSort} />
         )}
 
-        {query.data && query.data.pages > 1 && (
-          <div className="flex items-center justify-between gap-3 border-t border-line px-5 py-3 text-[12.5px] text-ink-3">
-            <span>
-              Página <span className="text-ink">{query.data.page}</span> de {num(query.data.pages)}
-            </span>
-            <div className="flex gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => update({ page: String(page - 1) })}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-line px-3 text-ink-2 hover:border-line-strong hover:text-ink disabled:opacity-40"
-              >
-                <ChevronLeft className="size-4" /> Anterior
-              </button>
-              <button
-                disabled={page >= query.data.pages}
-                onClick={() => update({ page: String(page + 1) })}
-                className="inline-flex h-8 items-center gap-1 rounded-lg border border-line px-3 text-ink-2 hover:border-line-strong hover:text-ink disabled:opacity-40"
-              >
-                Próxima <ChevronRight className="size-4" />
-              </button>
-            </div>
+        <Tabs
+          className="px-3"
+          value={tab}
+          onChange={(value) => update({ tab: value === "todos" ? null : value })}
+          items={[
+            { value: "todos", label: "Todos", count: counts.data?.all },
+            { value: "oportunidades", label: "Com oportunidades", count: counts.data?.with_opportunities },
+            { value: "alertas", label: "Com alertas", count: counts.data?.with_signals, title: "Mudança de comportamento no último trimestre" },
+            { value: "novos", label: "Novos", count: counts.data?.new_connections, title: "Primeiro consentimento Open Finance no mês de referência" },
+            { value: "favoritos", label: "Favoritos", count: favorites.length || undefined },
+          ]}
+        />
+
+        {selected.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-line bg-primary-soft/60 px-5 py-2.5 text-[13px] animate-fade-in">
+            <span className="font-semibold text-ink">{selected.length} selecionado{selected.length > 1 ? "s" : ""}</span>
+            <Button size="sm" variant="secondary" onClick={() => addFavorites(selected)}>
+              <Star className="size-3.5" /> Adicionar aos favoritos
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => exportList.mutate({ customer_id: selected })}>
+              <Download className="size-3.5" /> Exportar seleção
+            </Button>
+            <button type="button" onClick={() => setSelected([])} className="ml-auto text-[12.5px] font-semibold text-primary-ink hover:underline">
+              Limpar seleção
+            </button>
           </div>
+        )}
+
+        {noFavorites ? (
+          <EmptyState icon={Star} title="Nenhum favorito ainda" description="Use o menu ⋯ de um cliente ou selecione vários na lista para acompanhá-los aqui." />
+        ) : query.error ? (
+          <ErrorState error={query.error} />
+        ) : !query.data ? (
+          <div className="space-y-2 p-5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-11" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <EmptyState title="Nenhum cliente com esses filtros" description="Ajuste ou limpe os filtros para ampliar a busca." />
+        ) : (
+          <div className={cn("overflow-x-auto px-5 pt-3 transition-opacity", query.isFetching && query.isPlaceholderData && "opacity-60")}>
+            <table className="w-full min-w-[980px] text-left text-[13.5px]">
+              <thead>
+                <tr className="bg-surface-2 text-[12.5px] text-ink-2">
+                  <th className="w-11 rounded-l-lg py-2.5 pl-4">
+                    <input
+                      type="checkbox"
+                      aria-label="Selecionar todos da página"
+                      checked={allSelected}
+                      onChange={() => setSelected(allSelected ? selected.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...selected, ...pageIds])))}
+                      className="size-4 cursor-pointer accent-primary"
+                    />
+                  </th>
+                  <SortHeader label="Cliente" column="name" sort={sort} order={order} onSort={toggleSort} />
+                  <th className="px-3 py-2.5 font-medium">ID</th>
+                  <th className="px-3 py-2.5 font-medium">Segmento</th>
+                  <SortHeader label="Score" column="opportunity_score" sort={sort} order={order} onSort={toggleSort} />
+                  <th className="px-3 py-2.5 font-medium">Oportunidades</th>
+                  <th className="px-3 py-2.5 font-medium">Status Open Finance</th>
+                  <th className="rounded-r-lg px-4 py-2.5 text-right font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <CustomerRow
+                    key={row.customer_id}
+                    row={row}
+                    selected={selected.includes(row.customer_id)}
+                    favorite={favorites.includes(row.customer_id)}
+                    onSelect={() =>
+                      setSelected((ids) => (ids.includes(row.customer_id) ? ids.filter((id) => id !== row.customer_id) : [...ids, row.customer_id]))
+                    }
+                    onOpen={() => router.push(`/clientes/${row.customer_id}`)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {query.data && !noFavorites && query.data.total > 0 && (
+          <Pagination
+            page={query.data.page}
+            pages={query.data.pages}
+            total={query.data.total}
+            pageSize={PAGE_SIZE}
+            noun="clientes"
+            onChange={(p) => update({ page: String(p) })}
+          />
         )}
       </Card>
     </div>
   );
 }
 
-function SortHeader({
-  label,
-  column,
-  sort,
-  order,
-  onSort,
-  align = "left",
-}: {
-  label: string;
-  column: string;
-  sort: string;
-  order: string;
-  onSort: (key: string) => void;
-  align?: "left" | "right";
-}) {
+function SortHeader({ label, column, sort, order, onSort }: { label: string; column: string; sort: string; order: string; onSort: (key: string) => void }) {
   const active = sort === column;
+  const Icon = !active ? ChevronsUpDown : order === "desc" ? ArrowDown : ArrowUp;
   return (
-    <th className={cn("px-3 py-2.5 font-medium", align === "right" && "text-right")} aria-sort={active ? (order === "desc" ? "descending" : "ascending") : "none"}>
-      <button onClick={() => onSort(column)} className={cn("inline-flex items-center gap-1 uppercase hover:text-ink-2", active && "text-ink-2")}>
+    <th className="px-3 py-2.5 font-medium" aria-sort={active ? (order === "desc" ? "descending" : "ascending") : "none"}>
+      <button type="button" onClick={() => onSort(column)} className={cn("inline-flex items-center gap-1 hover:text-ink", active && "text-ink")}>
         {label}
-        {active && (order === "desc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />)}
+        <Icon className="size-3.5" />
       </button>
     </th>
   );
 }
 
-function CustomersTable({
-  rows,
-  institutions,
-  sort,
-  order,
-  onSort,
+function CustomerRow({
+  row,
+  selected,
+  favorite,
+  onSelect,
+  onOpen,
 }: {
-  rows: CustomerListItem[];
-  institutions: ReturnType<typeof useInstitutions>;
-  sort: string;
-  order: string;
-  onSort: (key: string) => void;
+  row: CustomerListItem;
+  selected: boolean;
+  favorite: boolean;
+  onSelect: () => void;
+  onOpen: () => void;
 }) {
-  const router = useRouter();
+  const stop = (event: React.MouseEvent) => event.stopPropagation();
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px] text-left text-[13px]">
-        <thead>
-          <tr className="border-y border-line text-[11.5px] tracking-wide text-ink-3">
-            <SortHeader label="Cliente" column="name" sort={sort} order={order} onSort={onSort} />
-            <SortHeader label="Financial Health" column="health_score" sort={sort} order={order} onSort={onSort} />
-            <SortHeader label="Opp. Score" column="opportunity_score" sort={sort} order={order} onSort={onSort} />
-            <th className="px-3 py-2.5 font-medium uppercase">Top opportunity</th>
-            <SortHeader label="Patrimônio" column="total_assets" sort={sort} order={order} onSort={onSort} align="right" />
-            <SortHeader label="Dívida" column="total_debt" sort={sort} order={order} onSort={onSort} align="right" />
-            <SortHeader label="Instituições" column="institutions_count" sort={sort} order={order} onSort={onSort} />
-            <th className="px-3 py-2.5 font-medium uppercase">Sinais</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const band = BAND_META[row.health_band];
-            return (
-              <tr
-                key={row.customer_id}
-                onClick={() => router.push(`/clientes/${row.customer_id}`)}
-                className="cursor-pointer border-b border-line/70 transition-colors last:border-0 hover:bg-white/[0.025]"
-              >
-                <td className="px-5 py-2.5">
-                  <Link
-                    href={`/clientes/${row.customer_id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="font-medium whitespace-nowrap text-ink hover:text-accent-soft"
-                  >
-                    {row.name}
-                  </Link>
-                  <div className="text-[12px] whitespace-nowrap text-ink-3">
-                    {row.customer_id} · {row.segment} · {row.age_range}
-                  </div>
-                </td>
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="tnum w-7 font-semibold text-ink">{row.health_score}</span>
-                    <div className="w-16">
-                      <Meter value={row.health_score / 100} color={band.color} />
-                    </div>
-                    <span className={cn("text-[12px]", band.text)}>{band.label}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                  <LazyScoreExplain customerId={row.customer_id} score={row.opportunity_score} type={row.top_opportunity_type} />
-                </td>
-                <td className="px-3 py-2.5">
-                  {row.top_opportunity_type ? (
-                    <span className="flex items-center gap-2">
-                      <OpportunityTag type={row.top_opportunity_type} short />
-                      {row.opportunities_count > 1 && <span className="text-[11.5px] text-ink-3">+{row.opportunities_count - 1}</span>}
-                    </span>
-                  ) : (
-                    <span className="text-ink-3">—</span>
-                  )}
-                </td>
-                <td className="tnum px-3 py-2.5 text-right text-ink">{brl(row.total_assets)}</td>
-                <td className="px-3 py-2.5 text-right">
-                  <div className="tnum text-ink">{brl(row.total_debt)}</div>
-                  <div className={cn("text-[11.5px]", DEBT_LEVEL_META[row.debt_level].className)}>{DEBT_LEVEL_META[row.debt_level].label}</div>
-                </td>
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <InstitutionStack institutions={row.institutions.map((id) => institutions[id]).filter(Boolean)} />
-                    <span className="text-[12px] text-ink-3">{row.institutions_count}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-1.5">
-                    {row.signals_count > 0 && (
-                      <Badge className="bg-warning/10 text-warning ring-warning/20" title="Mudanças de comportamento no último trimestre">
-                        <Activity className="size-3" /> {row.signals_count}
-                      </Badge>
-                    )}
-                    {row.is_anomaly && (
-                      <Badge className="bg-violet/12 text-[#c9c3f7] ring-violet/25" title="Comportamento atípico (Isolation Forest)">
-                        <Radar className="size-3" />
-                      </Badge>
-                    )}
-                    {row.signals_count === 0 && !row.is_anomaly && <span className="text-ink-3">—</span>}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <tr onClick={onOpen} className={cn("cursor-pointer border-b border-line transition-colors last:border-0 hover:bg-[#f9fbfe]", selected && "bg-primary-soft/40")}>
+      <td className="py-2.5 pl-4" onClick={stop}>
+        <input type="checkbox" aria-label={`Selecionar ${row.name}`} checked={selected} onChange={onSelect} className="size-4 cursor-pointer accent-primary" />
+      </td>
+      <td className="px-3 py-2.5">
+        <div className="flex items-center gap-3">
+          <Avatar name={row.name} />
+          <Link href={`/clientes/${row.customer_id}`} onClick={stop} className="font-semibold whitespace-nowrap text-ink hover:text-primary-ink">
+            {row.name}
+          </Link>
+          {favorite && <Star className="size-3.5 fill-[#f5b301] text-[#f5b301]" aria-label="Favorito" />}
+          {row.is_anomaly && <Radar className="size-3.5 text-ai" aria-label="Comportamento atípico" />}
+        </div>
+      </td>
+      <td className="tnum px-3 py-2.5 whitespace-nowrap text-ink-2">{row.customer_id}</td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-ink-2">{row.segment}</td>
+      <td className="px-3 py-2.5" onClick={stop}>
+        <LazyScoreExplain customerId={row.customer_id} score={row.opportunity_score} type={row.top_opportunity_type} />
+      </td>
+      <td className="px-3 py-2.5">
+        <OpportunityTiles types={row.opportunity_types} />
+      </td>
+      <td className="px-3 py-2.5">
+        <ConsentPill status={row.consent_status} />
+      </td>
+      <td className="px-4 py-2.5" onClick={stop}>
+        <div className="flex items-center justify-end gap-2">
+          <Link href={`/clientes/${row.customer_id}`} className={buttonClass("soft", "sm", "h-8 w-16")}>
+            Ver
+          </Link>
+          <Dropdown
+            label={`Ações para ${row.name}`}
+            width={230}
+            triggerClassName="grid size-8 place-items-center rounded-md text-ink-2 hover:bg-surface-3"
+            trigger={<Ellipsis className="size-5" />}
+          >
+            {(close) => (
+              <>
+                <MenuItem icon={ExternalLink} href={`/clientes/${row.customer_id}`} onSelect={close}>
+                  Abrir Customer 360
+                </MenuItem>
+                <MenuItem icon={Target} href={`/oportunidades?customer_id=${row.customer_id}`} onSelect={close}>
+                  Ver oportunidades
+                </MenuItem>
+                <MenuItem icon={Calculator} href={`/simulador?customer=${row.customer_id}`} onSelect={close}>
+                  Simular proposta
+                </MenuItem>
+                <MenuDivider />
+                <MenuItem
+                  icon={Star}
+                  onSelect={() => {
+                    toggleFavorite(row.customer_id);
+                    close();
+                  }}
+                >
+                  {favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                </MenuItem>
+              </>
+            )}
+          </Dropdown>
+        </div>
+      </td>
+    </tr>
   );
 }

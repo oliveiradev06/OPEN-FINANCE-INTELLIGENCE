@@ -2,8 +2,8 @@ import { pct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Emphasis part-to-whole bar: the primary bank in the accent, everything else in the
- * context gray, separated by a 2px surface gap. Shares are always printed as text.
+ * Emphasis part-to-whole bar: the primary bank in green, everything else in the context gray,
+ * separated by a 2px surface gap. Shares are always printed as text.
  */
 export function ShareBar({
   primaryShare,

@@ -39,18 +39,21 @@ export function Drawer({
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-[80]">
-      <button aria-label="Fechar painel" className="absolute inset-0 bg-black/55 animate-fade-in" onClick={onClose} />
+      <button aria-label="Fechar painel" className="absolute inset-0 bg-[#0b1f3a]/35 animate-fade-in" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
-        className="absolute top-0 right-0 flex h-full max-w-full flex-col border-l border-line-strong bg-[#0a101d] shadow-2xl shadow-black outline-none animate-slide-in"
+        className="absolute top-0 right-0 flex h-full max-w-full flex-col border-l border-line bg-white shadow-pop outline-none animate-slide-in"
         style={{ width }}
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
-          <div className="min-w-0">{title}{subtitle && <div className="mt-1 text-[12.5px] text-ink-3">{subtitle}</div>}</div>
-          <button onClick={onClose} className="rounded-md p-1.5 text-ink-3 hover:bg-surface-2 hover:text-ink" aria-label="Fechar">
+          <div className="min-w-0">
+            {title}
+            {subtitle && <div className="mt-1 text-[12.5px] text-ink-3">{subtitle}</div>}
+          </div>
+          <button onClick={onClose} className="rounded-md p-1.5 text-ink-3 hover:bg-surface-3 hover:text-ink" aria-label="Fechar">
             <X className="size-4" />
           </button>
         </div>

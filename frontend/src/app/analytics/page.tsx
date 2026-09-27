@@ -20,6 +20,7 @@ import {
   ZAxis,
 } from "recharts";
 import { ChartTooltip } from "@/components/charts/ChartTooltip";
+import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { OpportunityIcon } from "@/components/ui/OpportunityTag";
@@ -33,14 +34,14 @@ import { cn } from "@/lib/utils";
 
 function Histogram({ data, name }: { data: AnalyticsOverview["health_histogram"]; name: string }) {
   return (
-    <div className="h-[220px]">
+    <div className="h-[230px]">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }} barCategoryGap={2}>
           <CartesianGrid vertical={false} />
-          <XAxis dataKey="bin" tickLine={false} axisLine={false} interval={0} tick={{ fontSize: 10 }} />
+          <XAxis dataKey="bin" tickLine={false} axisLine={false} interval={0} tick={{ fontSize: 10.5 }} />
           <YAxis width={44} tickLine={false} axisLine={false} tickFormatter={(v: number) => num(v)} />
-          <Tooltip cursor={{ fill: "rgb(255 255 255 / 0.03)" }} content={<ChartTooltip valueFormatter={(v) => `${num(v)} clientes`} />} />
-          <Bar dataKey="count" name={name} fill="var(--color-blue)" radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
+          <Tooltip cursor={{ fill: "rgb(20 108 236 / 0.05)" }} content={<ChartTooltip valueFormatter={(v) => `${num(v)} clientes`} />} />
+          <Bar dataKey="count" name={name} fill="var(--color-primary)" radius={[4, 4, 0, 0]} maxBarSize={26} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -77,18 +78,18 @@ function SegmentScatter({ points, selected, segmentName }: { points: ScatterPoin
               if (!active || !payload?.length) return null;
               const p = payload[0].payload as ScatterPoint & { y: number };
               return (
-                <div className="rounded-lg border border-line-strong bg-[#0f1729]/95 px-3 py-2 text-[12px] shadow-xl">
-                  <div className="font-medium text-ink">{p.name}</div>
-                  <div className="text-ink-3">{segmentName(p.segment_id)}</div>
-                  <div className="mt-1 text-ink-2">
-                    Renda <span className="font-semibold text-ink">{brl(p.income)}</span> · {pct(p.external_asset_share)} do patrimônio fora
+                <div className="rounded-lg bg-[#0d2d54] px-3 py-2 text-[12px] text-white shadow-lg">
+                  <div className="font-semibold">{p.name}</div>
+                  <div className="text-white/70">{segmentName(p.segment_id)}</div>
+                  <div className="mt-1 text-white/85">
+                    Renda <span className="font-bold text-white">{brl(p.income)}</span> · {pct(p.external_asset_share)} do patrimônio fora
                   </div>
                 </div>
               );
             }}
           />
           {rest.length > 0 && <Scatter data={rest} fill="var(--color-context)" fillOpacity={0.3} isAnimationActive={false} />}
-          <Scatter data={focus} fill={selected === null ? "var(--color-blue)" : "var(--color-accent)"} fillOpacity={0.6} isAnimationActive={false} />
+          <Scatter data={focus} fill={selected === null ? "var(--color-primary)" : "var(--color-accent)"} fillOpacity={0.55} isAnimationActive={false} />
         </ScatterChart>
       </ResponsiveContainer>
     </div>
@@ -113,71 +114,61 @@ export default function AnalyticsPage() {
   return (
     <div className="animate-fade-in">
       <PageHeader
-        eyebrow="Machine Learning"
-        title="Analytics"
-        description="Segmentação comportamental não supervisionada, distribuições da carteira e detecção de anomalias — base para os modelos preditivos da próxima versão."
+        title="Análises"
+        description="Segmentação comportamental, distribuições da carteira e detecção de anomalias com machine learning"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Badge className="bg-blue/10 text-[#8fb9f0] ring-blue/20">
-              <BrainCircuit className="size-3" /> {data.model.algorithm} · k={data.model.k}
+            <Badge tone="blue">
+              <BrainCircuit className="size-3.5" /> {data.model.algorithm} · k={data.model.k}
             </Badge>
-            {data.model.silhouette !== null && <Badge>Silhouette {num(data.model.silhouette, 2)}</Badge>}
-            <Badge className="bg-violet/12 text-[#c9c3f7] ring-violet/25">
-              <Radar className="size-3" /> {data.model.anomaly_algorithm} · {data.model.anomalies} anomalias
+            {data.model.silhouette !== null && <Badge tone="gray">Silhouette {num(data.model.silhouette, 2)}</Badge>}
+            <Badge tone="violet">
+              <Radar className="size-3.5" /> {data.model.anomaly_algorithm} · {data.model.anomalies} anomalias
             </Badge>
           </div>
         }
       />
 
       {/* Segments */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {data.segments.map((s) => {
           const active = selected === s.segment_id;
           return (
             <button
               key={s.segment_id}
+              type="button"
               onClick={() => setSelected(active ? null : s.segment_id)}
+              aria-pressed={active}
               className={cn(
-                "rounded-xl border p-4 text-left transition-colors",
-                active ? "border-accent/45 bg-accent/[0.06]" : "border-white/[0.06] bg-surface hover:border-white/12",
+                "flex min-w-0 flex-col rounded-xl border bg-white p-5 text-left shadow-card transition-all",
+                active ? "border-primary/50 ring-3 ring-primary/10" : "border-line hover:shadow-pop",
               )}
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="text-[14px] font-semibold text-ink">{s.name}</div>
-                <span className="tnum text-[12px] text-ink-3">{num(s.size)} clientes</span>
+                <div className="text-[15px] font-semibold text-ink">{s.name}</div>
+                <span className="tnum shrink-0 text-[12.5px] text-ink-3">{num(s.size)} clientes</span>
               </div>
-              <p className="mt-1 text-[12.5px] leading-snug text-ink-3">{s.description}</p>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
-                <div>
-                  <div className="text-ink-3">Renda média</div>
-                  <div className="tnum font-medium text-ink">{brlCompact(s.profile.avg_income)}</div>
-                </div>
-                <div>
-                  <div className="text-ink-3">Patrimônio méd.</div>
-                  <div className="tnum font-medium text-ink">{brlCompact(s.profile.median_assets)}</div>
-                </div>
-                <div>
-                  <div className="text-ink-3">Health</div>
-                  <div className="tnum font-medium text-ink">{num(s.profile.health_score)}</div>
-                </div>
-                <div>
-                  <div className="text-ink-3">Patrim. fora</div>
-                  <div className="tnum font-medium text-ink">{pct(s.profile.external_asset_share)}</div>
-                </div>
-                <div>
-                  <div className="text-ink-3">Cartão fora</div>
-                  <div className="tnum font-medium text-ink">{pct(s.profile.card_external_share)}</div>
-                </div>
-                <div>
-                  <div className="text-ink-3">Parcelas/renda</div>
-                  <div className="tnum font-medium text-ink">{pct(s.profile.debt_service_ratio)}</div>
-                </div>
+              <p className="mt-1 text-[13px] leading-snug text-ink-2">{s.description}</p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-[12.5px]">
+                {[
+                  ["Renda média", brlCompact(s.profile.avg_income)],
+                  ["Patrimônio méd.", brlCompact(s.profile.median_assets)],
+                  ["Saúde", num(s.profile.health_score)],
+                  ["Patrim. fora", pct(s.profile.external_asset_share)],
+                  ["Cartão fora", pct(s.profile.card_external_share)],
+                  ["Parcelas/renda", pct(s.profile.debt_service_ratio)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg bg-surface-2 px-2.5 py-1.5">
+                    <div className="text-ink-3">{label}</div>
+                    <div className="tnum font-semibold text-ink">{value}</div>
+                  </div>
+                ))}
               </div>
               {s.opportunities.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-ink-3">
+                <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-ink-3">
                   {s.opportunities.slice(0, 3).map((o) => (
                     <span key={o.type} className="inline-flex items-center gap-1">
-                      <OpportunityIcon type={o.type} className="size-3" /> {o.label} <span className="text-ink-2">{num(o.count)}</span>
+                      <OpportunityIcon type={o.type} className="size-3.5" /> {o.label} <span className="font-semibold text-ink-2">{num(o.count)}</span>
                     </span>
                   ))}
                 </div>
@@ -187,14 +178,14 @@ export default function AnalyticsPage() {
         })}
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-8">
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+        <Card>
           <CardHeader
             title="Renda × patrimônio fora do banco"
             subtitle={selected === null ? "Amostra de 900 clientes · selecione um segmento para destacá-lo" : `Destaque: ${segmentName(selected)}`}
             actions={
               selected !== null && (
-                <Link href={`/clientes?segment_id=${selected}`} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-soft hover:text-accent">
+                <Link href={`/clientes?segment_id=${selected}`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary-ink hover:underline">
                   Ver clientes <ArrowRight className="size-3.5" />
                 </Link>
               )
@@ -204,7 +195,7 @@ export default function AnalyticsPage() {
             <SegmentScatter points={data.scatter} selected={selected} segmentName={segmentName} />
           </div>
         </Card>
-        <Card className="xl:col-span-4">
+        <Card>
           <CardHeader title="Participação do banco principal" subtitle="% da carteira em cada produto, mês a mês" />
           <div className="px-3 pb-4">
             <div className="h-[380px]">
@@ -213,11 +204,11 @@ export default function AnalyticsPage() {
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={20} />
                   <YAxis width={44} tickLine={false} axisLine={false} domain={[0.3, 0.8]} ticks={[0.3, 0.4, 0.5, 0.6, 0.7, 0.8]} tickFormatter={(v: number) => pct(v)} />
-                  <Tooltip cursor={{ stroke: "var(--color-line-strong)" }} content={<ChartTooltip valueFormatter={(v) => pct(v, 1)} />} />
+                  <Tooltip cursor={{ stroke: "#c9d3e1" }} content={<ChartTooltip valueFormatter={(v) => pct(v, 1)} />} />
                   <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, color: "var(--color-ink-2)" }} />
-                  <Line type="monotone" dataKey="Saldos em conta" stroke="var(--color-blue)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="Investimentos" stroke="var(--color-orange)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="Gastos com cartão" stroke="var(--color-aqua)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="Saldos em conta" stroke="#2a78d6" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="Investimentos" stroke="#eb6834" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="Gastos com cartão" stroke="#1baf7a" strokeWidth={2} dot={false} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -227,7 +218,7 @@ export default function AnalyticsPage() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Distribuição do Financial Health" subtitle="Faixas: crítica < 45 · atenção 45–64 · saudável 65–79 · excelente ≥ 80" />
+          <CardHeader title="Distribuição da saúde financeira" subtitle="Faixas: crítica < 45 · atenção 45–64 · saudável 65–79 · excelente ≥ 80" />
           <div className="px-3 pb-4">
             <Histogram data={data.health_histogram} name="Clientes" />
           </div>
@@ -242,37 +233,42 @@ export default function AnalyticsPage() {
 
       <Card className="mt-4">
         <CardHeader
-          icon={<Radar className="size-4" />}
+          icon={<Radar className="size-4 text-ai" />}
           title="Comportamento atípico"
           subtitle="Isolation Forest sobre variações trimestrais de gastos, saldo, renda, investimentos e dívida"
           actions={
-            <Link href="/clientes?anomaly=true" className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-soft hover:text-accent">
+            <Link href="/clientes?anomaly=true" className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary-ink hover:underline">
               Ver todos <ArrowRight className="size-3.5" />
             </Link>
           }
         />
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-[13px]">
+        <div className="overflow-x-auto px-5 pb-4">
+          <table className="w-full min-w-[720px] text-left text-[13.5px]">
             <thead>
-              <tr className="border-y border-line text-[11.5px] tracking-wide text-ink-3 uppercase">
-                <th className="px-5 py-2.5 font-medium">Cliente</th>
+              <tr className="bg-surface-2 text-[12.5px] text-ink-2">
+                <th className="rounded-l-lg px-4 py-2.5 font-medium">Cliente</th>
                 <th className="px-3 py-2.5 font-medium">Score de anomalia</th>
                 <th className="px-3 py-2.5 font-medium">O que mudou</th>
-                <th className="px-3 py-2.5 text-right font-medium">Health</th>
+                <th className="rounded-r-lg px-4 py-2.5 text-right font-medium">Saúde</th>
               </tr>
             </thead>
             <tbody>
               {data.anomalies.map((a) => (
-                <tr key={a.customer_id} className="border-b border-line/70 last:border-0 hover:bg-white/[0.025]">
-                  <td className="px-5 py-2.5">
-                    <Link href={`/clientes/${a.customer_id}`} className="font-medium text-ink hover:text-accent-soft">
-                      {a.name}
-                    </Link>
-                    <div className="text-[12px] text-ink-3">{a.customer_id}</div>
+                <tr key={a.customer_id} className="border-b border-line last:border-0 hover:bg-[#f9fbfe]">
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={a.name} />
+                      <div>
+                        <Link href={`/clientes/${a.customer_id}`} className="font-semibold text-ink hover:text-primary-ink">
+                          {a.name}
+                        </Link>
+                        <div className="text-[12px] text-ink-3">{a.customer_id}</div>
+                      </div>
+                    </div>
                   </td>
                   <td className="tnum px-3 py-2.5 text-ink">{num(a.score, 2)}</td>
-                  <td className="px-3 py-2.5 text-[12.5px] text-ink-2">{a.reasons.join(" · ")}</td>
-                  <td className="tnum px-3 py-2.5 text-right text-ink">{a.health_score}</td>
+                  <td className="px-3 py-2.5 text-[13px] text-ink-2">{a.reasons.join(" · ")}</td>
+                  <td className="tnum px-4 py-2.5 text-right font-semibold text-ink">{a.health_score}</td>
                 </tr>
               ))}
             </tbody>

@@ -27,15 +27,15 @@ export function TimelineMultiples({ timeline }: { timeline: TimelinePoint[] }) {
         const change = first !== 0 ? last / first - 1 : 0;
         const good = (change >= 0) === series.upIsGood;
         return (
-          <div key={series.key} className="rounded-xl border border-line bg-white/[0.015] p-3.5">
-            <div className="text-[12px] font-medium text-ink-2">{series.title}</div>
+          <div key={series.key} className="rounded-xl border border-line bg-white p-4 shadow-card">
+            <div className="text-[12.5px] font-medium text-ink-2">{series.title}</div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-[17px] font-semibold text-ink">{brl(last)}</span>
+              <span className="tnum text-[17px] font-bold text-[#0a1440]">{brl(last)}</span>
               {first !== 0 && Math.abs(change) > 0.005 && (
-                <span className={cn("text-[11.5px] font-medium", good ? "text-[#5fd35f]" : "text-[#f07171]")}>{signedPct(change)}</span>
+                <span className={cn("text-[11.5px] font-semibold", good ? "text-accent-ink" : "text-critical")}>{signedPct(change)}</span>
               )}
             </div>
-            <div className="text-[11px] text-ink-3">vs. {timeline[0] ? monthLabel(timeline[0].month) : "—"}</div>
+            <div className="text-[11.5px] text-ink-3">vs. {timeline[0] ? monthLabel(timeline[0].month) : "—"}</div>
             <div className="-mx-1 mt-2">
               <AreaTrend
                 id={`tl-${series.key}`}

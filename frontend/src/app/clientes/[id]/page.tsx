@@ -1,212 +1,249 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Activity, ArrowLeft, HeartPulse, Network, Sparkles, Target, TrendingUp, Wallet } from "lucide-react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { Target } from "lucide-react";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useState } from "react";
 import { AiPanel } from "@/components/customer/AiPanel";
-import { CashFlowTrend, CashFlowWaterfall } from "@/components/customer/CashFlow";
 import { CustomerHeader } from "@/components/customer/CustomerHeader";
 import { EcosystemGraph } from "@/components/customer/EcosystemGraph";
 import { HealthBreakdown } from "@/components/customer/HealthBreakdown";
 import { InstitutionDrawer } from "@/components/customer/InstitutionDrawer";
 import { OpportunityCard } from "@/components/customer/OpportunityCard";
+import { AssetDonut, EcosystemTiles, InfoGrid, OpportunityRows, RelationshipEvolution, ScoreProfileCard } from "@/components/customer/Overview";
+import { AccountsTab, CreditTab, InvestmentsTab, PensionTab } from "@/components/customer/ProductTabs";
 import { RelationshipMap, ResourceDistribution } from "@/components/customer/Relationship";
 import { SignalsList } from "@/components/customer/SignalsList";
 import { TimelineMultiples } from "@/components/customer/TimelineMultiples";
-import { Card, CardHeader, SectionTitle } from "@/components/ui/Card";
-import { StatTile } from "@/components/ui/StatTile";
-import { ErrorState, Skeleton } from "@/components/ui/States";
+import { Badge } from "@/components/ui/Badge";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { InstitutionAvatar } from "@/components/ui/InstitutionAvatar";
+import { EmptyState, ErrorState, Skeleton } from "@/components/ui/States";
+import { Tabs } from "@/components/ui/Tabs";
 import { api } from "@/lib/api";
-import { brl, monthLabel, pct } from "@/lib/format";
+import { dateBR, relativeTime } from "@/lib/format";
+import { BAND_META, CONSENT_META, SCOPE_LABELS } from "@/lib/labels";
 import { useInstitutions } from "@/lib/hooks";
 import { useRole } from "@/lib/role";
+import type { Customer360 } from "@/lib/types";
 
-function change(values: number[]): number | undefined {
-  const first = values[0];
-  const last = values[values.length - 1];
-  return first ? last / first - 1 : undefined;
-}
+const TABS = ["visao-geral", "conta", "investimentos", "credito", "previdencia", "oportunidades", "open-finance", "historico"] as const;
+type Tab = (typeof TABS)[number];
 
 export default function Customer360Page() {
+  return (
+    <Suspense fallback={<Skeleton className="h-[80vh] rounded-xl" />}>
+      <Customer360View />
+    </Suspense>
+  );
+}
+
+function Customer360View() {
   const { id } = useParams<{ id: string }>();
   const role = useRole();
-  const institutions = useInstitutions();
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const [openInstitution, setOpenInstitution] = useState<string | null>(null);
   const onOpen = useCallback((institutionId: string) => setOpenInstitution(institutionId), []);
   const { data, error } = useQuery({ queryKey: ["customer", id, role], queryFn: () => api.customer(id) });
+
+  const requested = params.get("tab") as Tab | null;
+  const tab: Tab = requested && TABS.includes(requested) ? requested : "visao-geral";
+  const setTab = (next: string) => router.replace(next === "visao-geral" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
 
   if (error) return <ErrorState error={error} className="mt-24" />;
   if (!data) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-36 rounded-xl" />
-        <div className="grid grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+        <Skeleton className="h-24 rounded-xl" />
+        <div className="grid gap-4 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 rounded-xl" />
           ))}
         </div>
-        <Skeleton className="h-[520px] rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
       </div>
     );
   }
 
-  const { metrics, timeline } = data;
-  const since = timeline[0] ? `vs. ${monthLabel(timeline[0].month)}` : undefined;
-  const assets = timeline.map((t) => t.balance_primary + t.balance_external + t.investments_primary + t.investments_external);
-
   return (
     <div className="animate-fade-in">
-      <Link href="/clientes" className="mb-4 inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 hover:text-ink">
-        <ArrowLeft className="size-3.5" /> Clientes
-      </Link>
+      <CustomerHeader data={data} onTab={setTab} />
+      <Tabs
+        className="mb-5"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { value: "visao-geral", label: "Visão geral" },
+          { value: "conta", label: "Conta e pagamentos" },
+          { value: "investimentos", label: "Investimentos" },
+          { value: "credito", label: "Crédito" },
+          { value: "previdencia", label: "Previdência" },
+          { value: "oportunidades", label: "Oportunidades", count: data.opportunities.length },
+          { value: "open-finance", label: "Open Finance" },
+          { value: "historico", label: "Histórico" },
+        ]}
+      />
 
-      <CustomerHeader data={data} />
+      {tab === "visao-geral" && <OverviewTab data={data} onOpen={onOpen} setTab={setTab} />}
+      {tab === "conta" && <AccountsTab data={data} onOpen={onOpen} />}
+      {tab === "investimentos" && <InvestmentsTab data={data} onOpen={onOpen} />}
+      {tab === "credito" && <CreditTab data={data} onOpen={onOpen} />}
+      {tab === "previdencia" && <PensionTab data={data} onOpen={onOpen} />}
+      {tab === "oportunidades" && <OpportunitiesTab data={data} />}
+      {tab === "open-finance" && <OpenFinanceTab data={data} onOpen={onOpen} />}
+      {tab === "historico" && <HistoryTab data={data} />}
 
-      {/* Financial overview KPIs */}
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatTile label="Renda mensal" value={brl(metrics.monthly_income)} delta={change(timeline.map((t) => t.income))} deltaLabel={since} trend={timeline.map((t) => t.income)} />
-        <StatTile label="Patrimônio" value={brl(metrics.total_assets)} delta={change(assets)} deltaLabel={since} trend={assets} />
-        <StatTile
-          label="Dívidas"
-          value={brl(metrics.total_debt)}
-          delta={change(timeline.map((t) => t.debt_total))}
-          deltaLabel={since}
-          upIsGood={false}
-          trend={timeline.map((t) => t.debt_total)}
-        />
-        <StatTile
-          label="Gasto mensal"
-          value={brl(metrics.monthly_expenses)}
-          delta={change(timeline.map((t) => t.expenses))}
-          deltaLabel={since}
-          upIsGood={false}
-          trend={timeline.map((t) => t.expenses)}
-        />
-        <StatTile
-          label="Instituições conectadas"
-          value={metrics.institutions_count}
-          hint={`${pct(metrics.external_asset_share)} do patrimônio fora do banco`}
-        />
+      <InstitutionDrawer customerId={id} institutionId={openInstitution} onClose={() => setOpenInstitution(null)} />
+    </div>
+  );
+}
+
+function OverviewTab({ data, onOpen, setTab }: { data: Customer360; onOpen: (id: string) => void; setTab: (tab: string) => void }) {
+  const band = BAND_META[data.health.band];
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,3.2fr)_minmax(0,5fr)_minmax(0,4.3fr)]">
+        <ScoreProfileCard data={data} />
+        <InfoGrid data={data} />
+        <RelationshipEvolution timeline={data.timeline} />
       </div>
-
-      {/* Financial ecosystem */}
-      <div className="mt-8">
-        <SectionTitle hint="Clique em uma instituição para ver saldo, produtos e transações">Financial Ecosystem</SectionTitle>
-        <div className="grid gap-4 xl:grid-cols-12">
-          <Card className="flex flex-col overflow-hidden xl:col-span-8">
-            <CardHeader
-              icon={<Network className="size-4" />}
-              title="Relacionamento com instituições"
-              subtitle="Espessura da conexão ∝ volume financeiro · linha animada = crédito de salário"
-            />
-            <div className="flex-1">
-              <EcosystemGraph data={data} onOpen={onOpen} />
-            </div>
-          </Card>
-          <div className="grid gap-4 xl:col-span-4">
-            <Card>
-              <CardHeader icon={<Wallet className="size-4" />} title="Onde está o dinheiro" subtitle="Saldo + investimentos por instituição" />
-              <div className="px-5 pb-5">
-                <ResourceDistribution nodes={data.ecosystem} onOpen={onOpen} />
-              </div>
-            </Card>
-            <Card>
-              <CardHeader title="Mapa de relacionamento" subtitle="Participação do banco principal por produto" />
-              <div className="px-5 pb-5">
-                <RelationshipMap rows={data.relationship_map} institutions={institutions} />
-              </div>
-            </Card>
-          </div>
-        </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,7.4fr)_minmax(0,5fr)]">
+        <EcosystemTiles nodes={data.ecosystem} onOpen={onOpen} onShowMap={() => setTab("open-finance")} />
+        <AssetDonut data={data} />
       </div>
-
-      {/* Cash flow */}
-      <div className="mt-8">
-        <SectionTitle>Financial Overview</SectionTitle>
-        <div className="grid gap-4 xl:grid-cols-12">
-          <Card className="xl:col-span-5">
-            <CardHeader title="Fluxo de caixa" subtitle="Para onde vai cada real da renda" />
-            <div className="px-5 pb-5">
-              <CashFlowWaterfall lastMonth={data.cash_flow.last_month} average={data.cash_flow.average_6m} />
-            </div>
-          </Card>
-          <Card className="xl:col-span-7">
-            <CardHeader title="Renda e gastos mês a mês" subtitle="Últimos 12 meses" />
-            <div className="px-3 pb-4">
-              <CashFlowTrend timeline={timeline} />
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Opportunities */}
-      <div className="mt-8">
-        <SectionTitle hint={`${data.opportunities.length} detectada${data.opportunities.length === 1 ? "" : "s"} pelo motor`}>Opportunities</SectionTitle>
-        {data.opportunities.length ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {data.opportunities.map((o) => (
-              <OpportunityCard key={o.opportunity_id} opportunity={o} />
-            ))}
-          </div>
-        ) : (
-          <Card className="flex items-center gap-2 px-5 py-6 text-[13px] text-ink-2">
-            <Target className="size-4 text-ink-3" /> Nenhuma oportunidade acima do score mínimo para este cliente.
-          </Card>
-        )}
-      </div>
-
-      {/* Health + behaviour */}
-      <div className="mt-8 grid gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,7.4fr)_minmax(0,5fr)]">
+        <OpportunityRows opportunities={data.opportunities} onShowAll={() => setTab("oportunidades")} />
+        <Card>
           <CardHeader
-            icon={<HeartPulse className="size-4" />}
-            title={`Financial Health · ${data.health.score}/100`}
-            subtitle="Seis componentes ponderados — cada ponto é rastreável até um número"
+            title="Saúde financeira"
+            subtitle="Seis componentes ponderados; cada ponto vem de um número do cliente"
+            actions={<Badge tone={band.tone}>{`${data.health.score}/100 · ${band.label}`}</Badge>}
           />
           <div className="px-5 pb-5">
             <HealthBreakdown health={data.health} />
           </div>
         </Card>
-        <Card className="xl:col-span-7">
+      </div>
+      <AiPanel data={data} />
+    </div>
+  );
+}
+
+function OpportunitiesTab({ data }: { data: Customer360 }) {
+  if (data.opportunities.length === 0) {
+    return (
+      <Card>
+        <EmptyState icon={Target} title="Nenhuma oportunidade" description="Nenhuma regra do motor alcançou o score mínimo de 45 para este cliente." />
+      </Card>
+    );
+  }
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {data.opportunities.map((o) => (
+        <OpportunityCard key={o.opportunity_id} opportunity={o} />
+      ))}
+    </div>
+  );
+}
+
+function OpenFinanceTab({ data, onOpen }: { data: Customer360; onOpen: (id: string) => void }) {
+  const institutions = useInstitutions();
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
+        <Card className="flex flex-col overflow-hidden">
           <CardHeader
-            icon={<Activity className="size-4" />}
-            title="Mudanças de comportamento"
-            subtitle="Último trimestre comparado ao trimestre anterior"
+            title="Mapa do ecossistema financeiro"
+            subtitle="Espessura da ligação proporcional ao volume · linha animada = crédito de salário · clique para detalhar"
           />
-          <div className="px-5 pb-5">
-            <SignalsList signals={data.signals} />
-            {data.anomaly.is_anomaly && (
-              <div className="mt-3 rounded-lg border border-violet/25 bg-violet/[0.06] p-3.5 text-[12.5px] text-ink-2">
-                <span className="font-medium text-ink">Comportamento atípico (Isolation Forest):</span> {data.anomaly.reasons.join(" · ")}.
-              </div>
-            )}
+          <div className="flex-1 border-t border-line bg-[#fafcfe]">
+            <EcosystemGraph data={data} onOpen={onOpen} />
           </div>
         </Card>
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader title="Onde está o dinheiro" subtitle="Saldo e investimentos por instituição" />
+            <div className="px-5 pb-5">
+              <ResourceDistribution nodes={data.ecosystem} onOpen={onOpen} />
+            </div>
+          </Card>
+          <Card>
+            <CardHeader title="Mapa de relacionamento" subtitle="Participação do banco principal por produto" />
+            <div className="px-5 pb-5">
+              <RelationshipMap rows={data.relationship_map} institutions={institutions} />
+            </div>
+          </Card>
+        </div>
       </div>
+      <Card>
+        <CardHeader
+          title="Consentimentos Open Finance"
+          subtitle={`${data.consent.active} ativos · ${data.consent.expiring} expirando · ${data.consent.revoked} revogados · sincronizado ${relativeTime(data.last_sync_at)}`}
+        />
+        <div className="overflow-x-auto px-5 pb-4">
+          <table className="w-full min-w-[820px] text-left text-[13.5px]">
+            <thead>
+              <tr className="bg-surface-2 text-[12.5px] text-ink-2">
+                <th className="rounded-l-lg px-4 py-2.5 font-medium">Instituição</th>
+                <th className="px-3 py-2.5 font-medium">Status</th>
+                <th className="px-3 py-2.5 font-medium">Escopos</th>
+                <th className="px-3 py-2.5 font-medium">Concedido em</th>
+                <th className="rounded-r-lg px-4 py-2.5 font-medium">Expira em</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.consent.items.map((c) => (
+                <tr key={c.consent_id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-3">
+                    <button type="button" onClick={() => onOpen(c.institution.institution_id)} className="flex items-center gap-2.5 font-semibold text-ink hover:text-primary-ink">
+                      <InstitutionAvatar institution={c.institution} size="md" /> {c.institution.name}
+                    </button>
+                  </td>
+                  <td className="px-3 py-3">
+                    <Badge tone={CONSENT_META[c.status]?.tone ?? "gray"}>{CONSENT_META[c.status]?.label ?? c.status}</Badge>
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {c.scopes.map((s) => (
+                        <Badge key={s} tone="gray" size="sm">
+                          {SCOPE_LABELS[s] ?? s}
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="tnum px-3 py-3 text-ink-2">{dateBR(c.granted_at)}</td>
+                  <td className="tnum px-4 py-3 text-ink-2">{dateBR(c.expires_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-3 text-[12.5px] text-ink-3">Finalidade de todos os consentimentos: {data.consent.items[0]?.purpose ?? "—"}.</p>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
-      {/* Timeline */}
-      <div className="mt-8">
-        <SectionTitle hint="Cada medida na sua própria escala">
-          <span className="inline-flex items-center gap-1.5">
-            <TrendingUp className="size-3.5" /> Timeline financeira
-          </span>
-        </SectionTitle>
-        <TimelineMultiples timeline={timeline} />
+function HistoryTab({ data }: { data: Customer360 }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="mb-3 text-[16px] font-semibold tracking-tight text-[#0e1a3a]">Timeline financeira · 12 meses</h2>
+        <TimelineMultiples timeline={data.timeline} />
       </div>
-
-      {/* AI */}
-      <div className="mt-8">
-        <SectionTitle>
-          <span className="inline-flex items-center gap-1.5">
-            <Sparkles className="size-3.5" /> AI Insights
-          </span>
-        </SectionTitle>
-        <AiPanel data={data} />
-      </div>
-
-      <InstitutionDrawer customerId={id} institutionId={openInstitution} onClose={() => setOpenInstitution(null)} />
+      <Card>
+        <CardHeader title="Mudanças de comportamento" subtitle="Último trimestre comparado ao trimestre anterior" />
+        <div className="px-5 pb-5">
+          <SignalsList signals={data.signals} />
+          {data.anomaly.is_anomaly && (
+            <div className="mt-3 rounded-lg border border-ai/20 bg-ai-soft/60 p-3.5 text-[13px] text-ink-2">
+              <span className="font-semibold text-ink">Comportamento atípico (Isolation Forest):</span> {data.anomaly.reasons.join(" · ")}.
+            </div>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

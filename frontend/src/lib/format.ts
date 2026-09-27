@@ -45,6 +45,12 @@ export const monthLabel = (iso: string) => {
   return `${MONTHS[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`;
 };
 
+/** "2026-08-01" -> "Ago" (chart ticks of a window shorter than a year) */
+export const monthShort = (iso: string) => {
+  const name = MONTHS[toDate(iso).getMonth()];
+  return name[0].toUpperCase() + name.slice(1);
+};
+
 /** "2026-08-01" -> "agosto de 2026" */
 export const monthLong = (iso: string) => {
   const d = toDate(iso);
@@ -61,10 +67,15 @@ export function relativeTime(iso: string): string {
   if (minutes < 1) return "agora";
   if (minutes < 60) return `há ${minutes} min`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `há ${hours} h`;
+  if (hours < 24) return `há ${hours} ${hours === 1 ? "hora" : "horas"}`;
   const days = Math.round(hours / 24);
-  return `há ${days} ${days === 1 ? "dia" : "dias"}`;
+  if (days < 30) return `há ${days} ${days === 1 ? "dia" : "dias"}`;
+  const months = Math.round(days / 30);
+  return `há ${months} ${months === 1 ? "mês" : "meses"}`;
 }
+
+/** Masks all but the tail of an internal ID for dense lists: "CUS-00001" stays readable as "#00001". */
+export const shortId = (id: string) => `#${id.split("-").pop()}`;
 
 export function formatMetric(metric: MetricValue): string {
   if (typeof metric.value === "string") return metric.value;

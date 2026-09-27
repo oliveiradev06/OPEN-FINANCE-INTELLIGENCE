@@ -1,20 +1,21 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, Check, Cpu, FileLock2, History, LoaderCircle, Lock, Play, ShieldCheck, Sparkles, UserRound, X } from "lucide-react";
-import { useState } from "react";
+import { Bot, Check, Cpu, Download, FileLock2, History, LoaderCircle, Lock, Play, ShieldCheck, Sparkles, UserRound, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { ShareBar } from "@/components/charts/ShareBar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { OpportunityTag } from "@/components/ui/OpportunityTag";
+import { OpportunityPill } from "@/components/ui/OpportunityTag";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Segmented } from "@/components/ui/Segmented";
 import { ErrorState, Skeleton } from "@/components/ui/States";
+import { Tabs } from "@/components/ui/Tabs";
 import { ApiError, api } from "@/lib/api";
 import { dateTimeBR, num, pct } from "@/lib/format";
 import { useCan } from "@/lib/hooks";
-import { ACTION_LABELS } from "@/lib/labels";
+import { ACTION_LABELS, SCOPE_LABELS } from "@/lib/labels";
 import { useRole } from "@/lib/role";
 import type { EngineConfig } from "@/lib/types";
 
@@ -74,7 +75,7 @@ function EngineTab({ config }: { config: EngineConfig }) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-              <Cpu className="size-4 text-accent" /> Opportunity Engine v{config.version}
+              <Cpu className="size-[18px] text-primary" /> Motor de oportunidades v{config.version}
             </div>
             <p className="mt-1 max-w-2xl text-[13px] text-ink-2">
               Motor baseado em regras explicáveis: cada regra soma fatores (0–100) medidos nos dados. Oportunidades abaixo de score{" "}
@@ -91,16 +92,16 @@ function EngineTab({ config }: { config: EngineConfig }) {
           </div>
         </div>
         {run.data && (
-          <div className="mt-4 rounded-lg border border-accent/25 bg-accent/[0.05] p-3 text-[12.5px] text-ink-2">
+          <div className="mt-4 rounded-lg bg-accent-soft/70 p-3 text-[13px] text-ink-2">
             <Check className="mr-1 inline size-4 text-accent" /> Execução {run.data.run_id} concluída em {num((run.data.duration_ms ?? 0) / 1000, 1)}s ·{" "}
             {num(run.data.opportunities_created)} oportunidades · {num(run.data.signals_created)} sinais.
           </div>
         )}
-        {run.error && <p className="mt-3 text-[12.5px] text-[#f07171]">{run.error instanceof ApiError ? run.error.message : "Falha na execução."}</p>}
+        {run.error && <p className="mt-3 text-[13px] text-critical">{run.error instanceof ApiError ? run.error.message : "Falha na execução."}</p>}
         {last?.stats?.stages && (
           <div className="mt-4 flex flex-wrap gap-2 text-[12px]">
             {Object.entries(last.stats.stages).map(([stage, seconds]) => (
-              <Badge key={stage}>
+              <Badge key={stage} tone="gray">
                 {STAGE_LABELS[stage] ?? stage}: <span className="text-ink">{num(seconds, 1)}s</span>
               </Badge>
             ))}
@@ -112,14 +113,14 @@ function EngineTab({ config }: { config: EngineConfig }) {
         {config.rules.map((rule) => (
           <Card key={rule.rule_id} className="p-5">
             <div className="flex items-start justify-between gap-3">
-              <OpportunityTag type={rule.type} />
-              <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[11px] text-ink-3">{rule.rule_id}</code>
+              <OpportunityPill type={rule.type} icon />
+              <code className="rounded bg-surface-3 px-1.5 py-0.5 font-mono text-[11px] text-ink-2">{rule.rule_id}</code>
             </div>
             <div className="mt-2 text-[14px] font-semibold text-ink">{rule.name}</div>
             <p className="mt-1 text-[12.5px] leading-snug text-ink-2">{rule.description}</p>
             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
               {Object.entries(rule.params).map(([key, value]) => (
-                <div key={key} className="flex justify-between gap-2 border-b border-line/60 py-1">
+                <div key={key} className="flex justify-between gap-2 border-b border-line py-1">
                   <dt className="text-ink-3">{PARAM_LABELS[key] ?? key}</dt>
                   <dd className="tnum font-medium text-ink">{formatParam(key, value)}</dd>
                 </div>
@@ -134,7 +135,7 @@ function EngineTab({ config }: { config: EngineConfig }) {
           <CardHeader title="Financial Health Score" subtitle="Componentes e pesos" />
           <div className="space-y-2 px-5 pb-5">
             {config.health_components.map((c) => (
-              <div key={c.key} className="flex items-center justify-between gap-3 border-b border-line/60 py-1.5 text-[12.5px] last:border-0">
+              <div key={c.key} className="flex items-center justify-between gap-3 border-b border-line py-1.5 text-[12.5px] last:border-0">
                 <div>
                   <div className="text-ink">{c.label}</div>
                   <div className="text-[11.5px] text-ink-3">{c.metric}</div>
@@ -149,7 +150,7 @@ function EngineTab({ config }: { config: EngineConfig }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[12.5px]">
               <thead>
-                <tr className="border-y border-line text-[11px] tracking-wide text-ink-3 uppercase">
+                <tr className="bg-surface-2 text-[12px] text-ink-2">
                   <th className="px-5 py-2 font-medium">Execução</th>
                   <th className="px-3 py-2 font-medium">Origem</th>
                   <th className="px-3 py-2 text-right font-medium">Duração</th>
@@ -158,7 +159,7 @@ function EngineTab({ config }: { config: EngineConfig }) {
               </thead>
               <tbody>
                 {config.runs.map((r) => (
-                  <tr key={r.run_id} className="border-b border-line/60 last:border-0">
+                  <tr key={r.run_id} className="border-b border-line last:border-0">
                     <td className="px-5 py-2">
                       <div className="font-mono text-[11.5px] text-ink">{r.run_id}</div>
                       <div className="text-[11.5px] text-ink-3">{dateTimeBR(r.started_at)}</div>
@@ -188,14 +189,6 @@ const LGPD_PRINCIPLES = [
   { title: "Dados sintéticos", text: "Este ambiente usa exclusivamente dados gerados artificialmente. Nenhum dado bancário real ou credencial é armazenado." },
 ];
 
-const SCOPE_LABELS: Record<string, string> = {
-  contas: "Contas",
-  transacoes: "Transações",
-  cartoes_credito: "Cartões de crédito",
-  investimentos: "Investimentos",
-  operacoes_credito: "Operações de crédito",
-};
-
 function LgpdTab() {
   const role = useRole();
   const { data, error } = useQuery({ queryKey: ["consents", role], queryFn: api.consents });
@@ -211,7 +204,7 @@ function LgpdTab() {
         ].map(([label, value]) => (
           <Card key={String(label)} className="p-4">
             <div className="text-[12.5px] text-ink-2">{label}</div>
-            <div className="mt-1.5 text-[24px] font-semibold text-ink">{value !== undefined ? num(Number(value)) : "—"}</div>
+            <div className="tnum mt-1.5 text-[26px] font-bold text-[#0a1440]">{value !== undefined ? num(Number(value)) : "—"}</div>
           </Card>
         ))}
       </div>
@@ -244,7 +237,7 @@ function LgpdTab() {
           <div className="space-y-2 px-5 pb-5">
             {data &&
               Object.entries(data.scopes).map(([scope, count]) => (
-                <div key={scope} className="flex justify-between border-b border-line/60 py-1.5 text-[12.5px] last:border-0">
+                <div key={scope} className="flex justify-between border-b border-line py-1.5 text-[12.5px] last:border-0">
                   <span className="text-ink-2">{SCOPE_LABELS[scope] ?? scope}</span>
                   <span className="tnum font-medium text-ink">{num(count)}</span>
                 </div>
@@ -256,7 +249,7 @@ function LgpdTab() {
         <CardHeader icon={<ShieldCheck className="size-4" />} title="Princípios LGPD aplicados na arquitetura" />
         <div className="grid gap-3 px-5 pb-5 md:grid-cols-2 xl:grid-cols-4">
           {LGPD_PRINCIPLES.map((p) => (
-            <div key={p.title} className="rounded-lg border border-line bg-white/[0.02] p-3.5">
+            <div key={p.title} className="rounded-lg bg-surface-2 p-4">
               <div className="text-[13px] font-semibold text-ink">{p.title}</div>
               <p className="mt-1 text-[12.5px] leading-snug text-ink-2">{p.text}</p>
             </div>
@@ -276,18 +269,26 @@ function AuditTab() {
       <Card className="flex flex-col items-center gap-2 px-6 py-14 text-center">
         <Lock className="size-6 text-warning" />
         <div className="text-[14px] font-medium text-ink">A trilha de auditoria é restrita</div>
-        <p className="max-w-md text-[13px] text-ink-3">Troque para o perfil Coordenador ou Auditor (menu lateral) para visualizar os registros de acesso.</p>
+        <p className="max-w-md text-[13px] text-ink-3">Troque para o perfil Coordenador ou Auditor no menu do usuário (canto superior direito) para ver os registros de acesso.</p>
       </Card>
     );
   }
   if (error) return <ErrorState error={error} />;
   return (
     <Card>
-      <CardHeader title="Trilha de auditoria" subtitle="Quem acessou o quê, quando e com qual finalidade" />
+      <CardHeader
+        title="Trilha de auditoria"
+        subtitle="Quem acessou o quê, quando e com qual finalidade"
+        actions={
+          <Button size="sm" variant="secondary" onClick={() => api.downloadReport("auditoria")}>
+            <Download className="size-3.5" /> Exportar CSV
+          </Button>
+        }
+      />
       <div className="overflow-x-auto">
         <table className="w-full min-w-[860px] text-left text-[12.5px]">
           <thead>
-            <tr className="border-y border-line text-[11px] tracking-wide text-ink-3 uppercase">
+            <tr className="bg-surface-2 text-[12px] text-ink-2">
               <th className="px-5 py-2 font-medium">Data/hora</th>
               <th className="px-3 py-2 font-medium">Analista</th>
               <th className="px-3 py-2 font-medium">Ação</th>
@@ -297,7 +298,7 @@ function AuditTab() {
           </thead>
           <tbody>
             {data?.items.map((log) => (
-              <tr key={log.id} className="border-b border-line/60 last:border-0">
+              <tr key={log.id} className="border-b border-line last:border-0">
                 <td className="tnum px-5 py-2 whitespace-nowrap text-ink-2">{dateTimeBR(log.timestamp)}</td>
                 <td className="px-3 py-2">
                   <div className="text-ink">{log.actor}</div>
@@ -331,10 +332,10 @@ function AccessTab() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-[13px]">
           <thead>
-            <tr className="border-y border-line text-[11.5px] tracking-wide text-ink-3 uppercase">
+            <tr className="bg-surface-2 text-[12.5px] text-ink-2">
               <th className="px-5 py-2.5 font-medium">Permissão</th>
               {data.roles.map((r) => (
-                <th key={r.key} className={`px-3 py-2.5 text-center font-medium ${r.key === data.current.role ? "text-accent-soft" : ""}`}>
+                <th key={r.key} className={`px-3 py-2.5 text-center font-medium ${r.key === data.current.role ? "text-primary-ink" : ""}`}>
                   {r.label}
                 </th>
               ))}
@@ -342,11 +343,11 @@ function AccessTab() {
           </thead>
           <tbody>
             {permissions.map(([key, label]) => (
-              <tr key={key} className="border-b border-line/60 last:border-0">
+              <tr key={key} className="border-b border-line last:border-0">
                 <td className="px-5 py-2.5 text-ink">{label}</td>
                 {data.roles.map((r) => (
                   <td key={r.key} className="px-3 py-2.5 text-center">
-                    {r.permissions.includes(key) ? <Check className="mx-auto size-4 text-accent" /> : <X className="mx-auto size-4 text-ink-3/60" />}
+                    {r.permissions.includes(key) ? <Check className="mx-auto size-4 text-accent" /> : <X className="mx-auto size-4 text-[#c3ccda]" />}
                   </td>
                 ))}
               </tr>
@@ -356,7 +357,7 @@ function AccessTab() {
       </div>
       <div className="grid gap-3 px-5 py-5 md:grid-cols-3">
         {data.roles.map((r) => (
-          <div key={r.key} className="rounded-lg border border-line bg-white/[0.02] p-3.5 text-[12.5px]">
+          <div key={r.key} className="rounded-lg bg-surface-2 p-4 text-[13px]">
             <div className="font-semibold text-ink">{r.label}</div>
             <p className="mt-1 text-ink-2">{r.description}</p>
           </div>
@@ -372,14 +373,14 @@ function AiTab({ config }: { config: EngineConfig }) {
     <div className="grid gap-4 lg:grid-cols-2">
       <Card className="p-5">
         <div className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-          <Sparkles className="size-4 text-violet" /> AI Insight Engine
+          <Sparkles className="size-[18px] text-ai" /> IA explicativa
         </div>
         <div className="mt-4 space-y-2 text-[13px]">
-          <div className="flex justify-between border-b border-line/60 py-1.5">
+          <div className="flex justify-between border-b border-line py-1.5">
             <span className="text-ink-3">Modo</span>
             <span className="text-ink">{ai.mode === "llm" ? "LLM + guardrails" : "Redator determinístico (sem chave de API)"}</span>
           </div>
-          <div className="flex justify-between border-b border-line/60 py-1.5">
+          <div className="flex justify-between border-b border-line py-1.5">
             <span className="text-ink-3">Provedor</span>
             <span className="text-ink">{ai.provider ?? "—"}</span>
           </div>
@@ -389,7 +390,7 @@ function AiTab({ config }: { config: EngineConfig }) {
           </div>
         </div>
         {!ai.enabled && (
-          <p className="mt-4 rounded-lg border border-line bg-white/[0.02] p-3 text-[12.5px] text-ink-2">
+          <p className="mt-4 rounded-lg bg-surface-2 p-3.5 text-[13px] text-ink-2">
             Defina <code className="font-mono text-ink">ANTHROPIC_API_KEY</code> no <code className="font-mono text-ink">backend/.env</code> para gerar os textos com
             LLM. Sem a chave, o redator determinístico produz o texto a partir dos mesmos fatos.
           </p>
@@ -397,7 +398,7 @@ function AiTab({ config }: { config: EngineConfig }) {
       </Card>
       <Card className="p-5">
         <div className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-          <Bot className="size-4 text-violet" /> Guardrails
+          <Bot className="size-[18px] text-ai" /> Guardrails
         </div>
         <ul className="mt-3 space-y-2">
           {ai.guardrails.map((g) => (
@@ -411,24 +412,38 @@ function AiTab({ config }: { config: EngineConfig }) {
   );
 }
 
+const TAB_OPTIONS: { value: Tab; label: string }[] = [
+  { value: "engine", label: "Motor de oportunidades" },
+  { value: "lgpd", label: "Governança e LGPD" },
+  { value: "audit", label: "Auditoria" },
+  { value: "access", label: "Acesso e permissões" },
+  { value: "ai", label: "Inteligência artificial" },
+];
+
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-[60vh] rounded-xl" />}>
+      <SettingsView />
+    </Suspense>
+  );
+}
+
+function SettingsView() {
   const role = useRole();
-  const [tab, setTab] = useState<Tab>("engine");
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const requested = params.get("tab") as Tab | null;
+  const tab: Tab = requested && TAB_OPTIONS.some((t) => t.value === requested) ? requested : "engine";
   const { data, error } = useQuery({ queryKey: ["engine-config", role], queryFn: api.engineConfig });
   return (
     <div className="animate-fade-in">
-      <PageHeader eyebrow="Plataforma" title="Configurações" description="Regras do motor, governança de dados, auditoria, controle de acesso e IA." />
-      <Segmented
-        className="mb-4"
+      <PageHeader title="Configurações" description="Regras do motor, governança de dados, auditoria, controle de acesso e IA" />
+      <Tabs
+        className="mb-5"
         value={tab}
-        onChange={setTab}
-        options={[
-          { value: "engine", label: "Motor de oportunidades" },
-          { value: "lgpd", label: "Governança & LGPD" },
-          { value: "audit", label: "Auditoria" },
-          { value: "access", label: "Acesso & permissões" },
-          { value: "ai", label: "Inteligência artificial" },
-        ]}
+        onChange={(next) => router.replace(next === "engine" ? pathname : `${pathname}?tab=${next}`, { scroll: false })}
+        items={TAB_OPTIONS}
       />
       {error ? (
         <ErrorState error={error} />

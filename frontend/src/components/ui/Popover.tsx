@@ -55,7 +55,7 @@ export function HoverPopover({
         onMouseLeave={close}
         onFocus={open}
         onBlur={close}
-        className="inline-flex cursor-help rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        className="inline-flex cursor-help rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         {trigger}
       </span>
@@ -66,10 +66,7 @@ export function HoverPopover({
             role="tooltip"
             onMouseEnter={() => closeTimer.current && clearTimeout(closeTimer.current)}
             onMouseLeave={close}
-            className={cn(
-              "fixed z-[100] rounded-xl border border-line-strong bg-[#0f1729] p-4 text-left shadow-2xl shadow-black/70 animate-fade-in",
-              className,
-            )}
+            className={cn("fixed z-[100] rounded-xl border border-line bg-white p-4 text-left shadow-pop animate-fade-in", className)}
             style={{ top: pos.top, left: pos.left, width }}
           >
             {children}

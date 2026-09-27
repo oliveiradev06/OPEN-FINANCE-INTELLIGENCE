@@ -13,8 +13,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useMemo } from "react";
+import { Avatar } from "@/components/ui/Avatar";
 import { InstitutionAvatar } from "@/components/ui/InstitutionAvatar";
-import { brlCompact, initials } from "@/lib/format";
+import { brlCompact } from "@/lib/format";
 import { PRODUCT_META } from "@/lib/labels";
 import type { Customer360, EcosystemNode, ProductKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,12 +28,12 @@ const centerHandle = { top: "50%", left: "50%", transform: "translate(-50%, -50%
 function CustomerNode({ data }: NodeProps<Node<CustomerData>>) {
   return (
     <div className="flex w-[168px] flex-col items-center text-center">
-      <div className="relative grid size-[76px] place-items-center rounded-full bg-gradient-to-br from-accent/80 to-blue/80 p-[2px] shadow-[0_0_40px_-6px_rgba(16,185,129,0.55)]">
-        <div className="grid size-full place-items-center rounded-full bg-[#0b1322] text-[20px] font-semibold text-ink">{initials(data.name)}</div>
+      <div className="rounded-full bg-gradient-to-br from-[#1baf7a] to-[#2a78d6] p-[3px] shadow-[0_10px_30px_-10px_rgb(20_108_236/0.6)]">
+        <Avatar name={data.name} size="xl" className="size-[70px] text-[20px] ring-2 ring-white" />
       </div>
-      <div className="mt-2 text-[13px] font-semibold text-ink">{data.name}</div>
-      <div className="text-[11.5px] text-ink-3">
-        Patrimônio <span className="font-medium text-ink-2">{brlCompact(data.assets)}</span>
+      <div className="mt-2 text-[13.5px] font-bold text-ink">{data.name}</div>
+      <div className="text-[12px] text-ink-3">
+        Patrimônio <span className="font-semibold text-ink-2">{brlCompact(data.assets)}</span>
       </div>
       <Handle type="source" position={Position.Top} style={centerHandle} isConnectable={false} />
     </div>
@@ -49,35 +50,41 @@ function InstitutionNode({ data }: NodeProps<Node<InstitutionData>>) {
   if (node.debt_balance > 0) lines.push(`Dívida ${brlCompact(node.debt_balance)}`);
   return (
     <button
+      type="button"
       onClick={() => data.onOpen(inst.institution_id)}
       className={cn(
-        "group w-[184px] rounded-xl border bg-[#0d1526]/95 p-3 text-left shadow-lg shadow-black/40 transition-all outline-none",
-        "hover:-translate-y-0.5 hover:border-white/20 focus-visible:ring-2 focus-visible:ring-accent/60",
-        inst.is_primary ? "border-accent/50 shadow-[0_0_28px_-10px_rgba(16,185,129,0.8)]" : "border-line-strong",
+        "group w-[188px] rounded-xl border bg-white p-3 text-left shadow-card transition-all outline-none",
+        "hover:-translate-y-0.5 hover:shadow-pop focus-visible:ring-2 focus-visible:ring-primary/40",
+        inst.is_primary ? "border-accent/60 ring-2 ring-accent/15" : "border-line",
       )}
     >
       <div className="flex items-center gap-2">
         <InstitutionAvatar institution={inst} size="md" />
         <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold text-ink">{inst.short_name}</div>
-          <div className="text-[11px] text-ink-3">{inst.is_primary ? "Banco principal" : node.receives_salary ? "Recebe salário" : `${Math.round(node.share_of_assets * 100)}% do patrimônio`}</div>
+          <div className="truncate text-[13.5px] font-semibold text-ink">{inst.short_name}</div>
+          <div className="text-[11.5px] text-ink-3">
+            {inst.is_primary ? "Banco principal" : node.receives_salary ? "Recebe salário" : `${Math.round(node.share_of_assets * 100)}% do patrimônio`}
+          </div>
         </div>
       </div>
       <div className="mt-2 flex flex-wrap gap-1">
         {node.products.map((p) => (
-          <span key={p} className={cn("rounded px-1.5 py-0.5 text-[10.5px] font-medium", p === "salario" ? "bg-accent/15 text-accent-soft" : "bg-white/[0.06] text-ink-2")}>
+          <span
+            key={p}
+            className={cn("rounded px-1.5 py-0.5 text-[10.5px] font-semibold", p === "salario" ? "bg-accent-soft text-accent-ink" : "bg-surface-3 text-ink-2")}
+          >
             {PRODUCT_META[p as ProductKey]?.label ?? p}
           </span>
         ))}
       </div>
-      <div className="mt-2 space-y-0.5 text-[11.5px] text-ink-2">
+      <div className="mt-2 space-y-0.5 text-[12px] text-ink-2">
         {lines.slice(0, 3).map((line) => (
           <div key={line} className="tnum">
             {line}
           </div>
         ))}
       </div>
-      <div className="mt-1.5 text-[10.5px] text-ink-3 opacity-0 transition-opacity group-hover:opacity-100">Clique para detalhar →</div>
+      <div className="mt-1.5 text-[11px] font-medium text-primary-ink opacity-0 transition-opacity group-hover:opacity-100">Clique para detalhar →</div>
       <Handle type="target" position={Position.Top} style={centerHandle} isConnectable={false} />
     </button>
   );
@@ -108,7 +115,7 @@ export function EcosystemGraph({ data, onOpen }: { data: Customer360; onOpen: (i
       return {
         id: node.institution.institution_id,
         type: "institution",
-        position: { x: Math.cos(angle) * rx - 92, y: Math.sin(angle) * ry - 58 },
+        position: { x: Math.cos(angle) * rx - 94, y: Math.sin(angle) * ry - 58 },
         data: { node, onOpen },
       };
     });
@@ -121,9 +128,9 @@ export function EcosystemGraph({ data, onOpen }: { data: Customer360; onOpen: (i
         type: "straight",
         animated: node.receives_salary,
         style: {
-          stroke: primary ? "var(--color-accent)" : "var(--color-context)",
+          stroke: primary ? "var(--color-accent)" : "#9aa7bb",
           strokeWidth: 1.5 + 5 * Math.sqrt(volume(node) / max),
-          strokeOpacity: primary ? 0.9 : 0.75,
+          strokeOpacity: primary ? 0.9 : 0.7,
         },
       };
     });
@@ -146,7 +153,7 @@ export function EcosystemGraph({ data, onOpen }: { data: Customer360; onOpen: (i
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#1c2842" />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#d3dce8" />
         <Controls showInteractive={false} position="bottom-right" />
       </ReactFlow>
     </div>

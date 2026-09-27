@@ -1,70 +1,77 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { InstitutionStack } from "@/components/ui/InstitutionAvatar";
-import { OpportunityTag } from "@/components/ui/OpportunityTag";
+import { useState } from "react";
+import { Avatar } from "@/components/ui/Avatar";
+import { buttonClass } from "@/components/ui/Button";
+import { OpportunityPills } from "@/components/ui/OpportunityTag";
 import { ScoreExplain } from "@/components/ui/ScoreExplain";
-import { brl, relativeTime } from "@/lib/format";
+import { shortId } from "@/lib/format";
 import type { PriorityCustomer } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
-export function PriorityTable({ rows }: { rows: PriorityCustomer[] }) {
-  const router = useRouter();
+type Sort = { key: "name" | "score"; dir: "asc" | "desc" };
+
+function SortButton({ label, active, dir, onClick }: { label: string; active: boolean; dir: "asc" | "desc"; onClick: () => void }) {
+  const Icon = !active ? ChevronsUpDown : dir === "desc" ? ArrowDown : ArrowUp;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-[13px]">
+    <button type="button" onClick={onClick} className={cn("inline-flex items-center gap-1 hover:text-ink", active && "text-ink")}>
+      {label}
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
+/** "Clientes em destaque": score with its explanation, main opportunity types and a detail link. */
+export function PriorityTable({ rows }: { rows: PriorityCustomer[] }) {
+  const [sort, setSort] = useState<Sort>({ key: "score", dir: "desc" });
+  const sorted = [...rows].sort((a, b) => {
+    const diff = sort.key === "score" ? a.opportunity_score - b.opportunity_score : a.name.localeCompare(b.name, "pt-BR");
+    return sort.dir === "desc" ? -diff : diff;
+  });
+  const toggle = (key: Sort["key"]) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: key === "name" ? "asc" : "desc" }));
+
+  return (
+    <div className="overflow-x-auto px-5 pb-4">
+      <table className="w-full min-w-[620px] text-left text-[13.5px]">
         <thead>
-          <tr className="border-y border-line text-[11.5px] tracking-wide text-ink-3 uppercase">
-            <th className="px-5 py-2.5 font-medium">Cliente</th>
-            <th className="px-3 py-2.5 font-medium">Score</th>
-            <th className="px-3 py-2.5 font-medium">Oportunidade</th>
-            <th className="px-3 py-2.5 text-right font-medium">Valor</th>
-            <th className="px-3 py-2.5 font-medium">Instituições</th>
-            <th className="px-3 py-2.5 font-medium">Atualização</th>
-            <th className="w-8" />
+          <tr className="bg-surface-2 text-[12.5px] text-ink-2">
+            <th className="rounded-l-lg px-4 py-2.5 font-medium">
+              <SortButton label="Cliente" active={sort.key === "name"} dir={sort.dir} onClick={() => toggle("name")} />
+            </th>
+            <th className="w-[92px] px-3 py-2.5 font-medium">
+              <SortButton label="Score" active={sort.key === "score"} dir={sort.dir} onClick={() => toggle("score")} />
+            </th>
+            <th className="w-[44%] px-3 py-2.5 font-medium">Principais oportunidades</th>
+            <th className="rounded-r-lg px-4 py-2.5 text-right font-medium">Ações</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.customer_id}
-              onClick={() => router.push(`/clientes/${row.customer_id}`)}
-              className="group cursor-pointer border-b border-line/70 transition-colors last:border-0 hover:bg-white/[0.025]"
-            >
-              <td className="px-5 py-3">
-                <Link
-                  href={`/clientes/${row.customer_id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="font-medium whitespace-nowrap text-ink outline-none hover:text-accent-soft focus-visible:underline"
-                >
-                  {row.name}
+          {sorted.map((row) => (
+            <tr key={row.customer_id} className="border-b border-line last:border-0">
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar name={row.name} />
+                  <div className="min-w-0">
+                    <Link href={`/clientes/${row.customer_id}`} className="block truncate font-semibold text-ink hover:text-primary-ink">
+                      {row.name}
+                    </Link>
+                    <div className="text-[12px] text-ink-3">{shortId(row.customer_id)}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-3 py-3">
+                <ScoreExplain score={row.opportunity_score} title={row.opportunity_label} factors={row.score_breakdown} reasons={row.reasons} />
+              </td>
+              <td className="px-3 py-3">
+                <OpportunityPills types={row.opportunity_types.length ? row.opportunity_types : [row.opportunity_type]} />
+              </td>
+              <td className="px-4 py-3 text-right">
+                <Link href={`/clientes/${row.customer_id}`} className={buttonClass("soft", "sm", "h-9 px-4")}>
+                  Ver detalhes
                 </Link>
-                <div className="text-[12px] whitespace-nowrap text-ink-3">
-                  {row.customer_id} · {row.segment}
-                </div>
-              </td>
-              <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                <ScoreExplain
-                  score={row.opportunity_score}
-                  title={row.opportunity_label}
-                  factors={row.score_breakdown}
-                  reasons={row.reasons}
-                />
-              </td>
-              <td className="px-3 py-3">
-                <OpportunityTag type={row.opportunity_type} />
-              </td>
-              <td className="tnum px-3 py-3 text-right font-medium text-ink">{brl(row.estimated_value)}</td>
-              <td className="px-3 py-3">
-                <div className="flex items-center gap-2">
-                  <InstitutionStack institutions={row.institutions} />
-                  <span className="text-[12px] text-ink-3">{row.institutions_count}</span>
-                </div>
-              </td>
-              <td className="px-3 py-3 text-[12.5px] whitespace-nowrap text-ink-3">{relativeTime(row.last_update)}</td>
-              <td className="pr-4">
-                <ChevronRight className="size-4 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100" />
               </td>
             </tr>
           ))}

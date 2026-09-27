@@ -7,9 +7,9 @@ export function WalletShareList({ data }: { data: WalletShare }) {
     <div className="space-y-5">
       {data.products.map((row) => (
         <div key={row.product}>
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <span className="text-[13px] font-medium text-ink">{row.label}</span>
-            <span className="tnum text-[12px] text-ink-3">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span className="text-[13.5px] font-semibold whitespace-nowrap text-ink">{row.label}</span>
+            <span className="tnum text-[12.5px] whitespace-nowrap text-ink-3">
               {brlCompact(row.primary)} no banco · {brlCompact(row.external)} fora
             </span>
           </div>

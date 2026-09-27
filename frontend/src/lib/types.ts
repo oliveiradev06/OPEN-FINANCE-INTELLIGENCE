@@ -69,6 +69,14 @@ export interface Meta {
   roles: { key: Role; label: string; description: string; permissions: string[] }[];
   permission_labels: Record<string, string>;
   ai: AiStatus;
+  simulation: SimulationAssumptions;
+}
+
+export interface SimulationAssumptions {
+  cdi_monthly: number;
+  expensive_debt_rate: number;
+  reference_rates: { loan_type: string; label: string; rate: number }[];
+  investment_products: { type: string; label: string; monthly_yield: number; liquidity: string; risk: string }[];
 }
 
 export interface AiStatus {
@@ -92,20 +100,37 @@ export interface EngineRunRef {
 export interface PortfolioSummary {
   customers: number;
   customers_with_opportunities: number;
+  customers_connected: number;
+  new_connections_last_month: number;
+  customers_with_signals: number;
+  customers_high_severity: number;
   total_assets: number;
   total_investments: number;
   total_debt: number;
   opportunities: number;
+  open_opportunities: number;
   opportunity_value: number;
   priority_customers: number;
   institutions_connected: number;
   avg_health_score: number;
   signals: number;
   active_consents: number;
+  consents_last_month: number;
   external_asset_share: number;
   reference_month: string;
   last_run: EngineRunRef | null;
   trend: { month: string; total_assets: number; investments: number; debt: number; card_spend: number }[];
+  connections_trend: { month: string; customers_connected: number; consents: number; new_customers: number }[];
+  score_bands: { key: string; label: string; min: number; max: number; count: number; share: number }[];
+}
+
+export interface ActivityItem {
+  kind: "connections" | "opportunities" | "priority" | "alerts" | "consents";
+  tone: "green" | "amber" | "blue" | "red" | "violet";
+  title: string;
+  detail: string;
+  timestamp: string;
+  href: string;
 }
 
 export interface OpportunityTypeSummary {
@@ -134,6 +159,7 @@ export interface PriorityCustomer {
   score_breakdown: ScoreFactor[];
   institutions_count: number;
   institutions: InstitutionRef[];
+  opportunity_types: OpportunityType[];
   last_update: string;
 }
 
@@ -178,12 +204,15 @@ export interface Insight {
 
 // ---- Customers ------------------------------------------------------------------------
 
+export type ConsentStatus = "active" | "expiring" | "revoked" | "none";
+
 export interface CustomerListItem {
   customer_id: string;
   name: string;
   segment: string;
   age_range: string;
   occupation_category: string;
+  state: string;
   monthly_income: number;
   health_score: number;
   health_band: HealthBand;
@@ -191,6 +220,7 @@ export interface CustomerListItem {
   top_opportunity_type: OpportunityType | null;
   opportunities_count: number;
   opportunity_value: number;
+  opportunity_types: OpportunityType[];
   total_assets: number;
   total_debt: number;
   debt_level: DebtLevel;
@@ -200,6 +230,14 @@ export interface CustomerListItem {
   is_anomaly: boolean;
   segment_id: number | null;
   segment_name: string | null;
+  consent_status: ConsentStatus;
+}
+
+export interface CustomerTabCounts {
+  all: number;
+  with_opportunities: number;
+  with_signals: number;
+  new_connections: number;
 }
 
 export interface CustomerSearchHit {
@@ -369,8 +407,37 @@ export interface Customer360 {
   opportunities: Opportunity[];
   signals: Signal[];
   relationship_map: RelationshipRow[];
+  asset_breakdown: { key: string; label: string; value: number; share: number }[];
+  products: CustomerProducts;
   last_sync_at: string;
   reference_month: string;
+}
+
+export interface CustomerProducts {
+  accounts: { account_id: string; institution: InstitutionRef; account_type: string; label: string; balance: number; average_balance: number; opened_at: string }[];
+  cards: { card_id: string; institution: InstitutionRef; brand: string; tier: string; credit_limit: number; monthly_bill: number; utilization: number }[];
+  investments: {
+    investment_id: string;
+    institution: InstitutionRef;
+    investment_type: string;
+    label: string;
+    product_name: string;
+    balance: number;
+    risk_category: string;
+    liquidity: string;
+  }[];
+  loans: {
+    loan_id: string;
+    institution: InstitutionRef;
+    loan_type: string;
+    label: string;
+    balance: number;
+    interest_rate: number;
+    installment: number;
+    remaining_months: number | null;
+    reference_rate: number | null;
+    expensive: boolean;
+  }[];
 }
 
 export interface InstitutionDrilldown {
@@ -477,8 +544,29 @@ export interface OpportunityDetail extends Opportunity {
   };
   series: TimelinePoint[];
   related: { opportunity_id: string; type: OpportunityType; type_label: string; score: number; estimated_value: number; status: OpportunityStatus }[];
+  history: {
+    timestamp: string;
+    kind: "detected" | "status_change";
+    actor: string;
+    role: string | null;
+    from_status: OpportunityStatus | null;
+    to_status: OpportunityStatus | null;
+    note: string | null;
+  }[];
   explanation: string;
   guardrail: string;
+}
+
+export interface ReportInfo {
+  key: string;
+  title: string;
+  description: string;
+  format: "csv";
+  permission: string;
+  permission_label: string;
+  available: boolean;
+  rows: number;
+  last_export: string | null;
 }
 
 // ---- Institutions / analytics / governance -----------------------------------------------

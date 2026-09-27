@@ -1,5 +1,6 @@
 import { getRole } from "./role";
 import type {
+  ActivityItem,
   AiSummary,
   AnalyticsOverview,
   AskResponse,
@@ -8,6 +9,7 @@ import type {
   Customer360,
   CustomerListItem,
   CustomerSearchHit,
+  CustomerTabCounts,
   EngineConfig,
   EngineRun,
   Insight,
@@ -24,6 +26,7 @@ import type {
   PortfolioSummary,
   PriorityCustomer,
   RecentSignal,
+  ReportInfo,
   Role,
   WalletShare,
 } from "./types";
@@ -50,7 +53,7 @@ export function toQuery(params: Params): string {
   return text ? `?${text}` : "";
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function send(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(`/api${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", "X-Analyst-Role": getRole(), ...init?.headers },
@@ -66,7 +69,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(response.status, detail);
   }
-  return response.json() as Promise<T>;
+  return response;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await send(path, init)).json() as Promise<T>;
+}
+
+/** Downloads a CSV report through the API (the export is permission-checked and audited there). */
+async function downloadReport(key: string, params: Params = {}): Promise<void> {
+  const response = await send(`/reports/${key}${toQuery(params)}`);
+  const blob = await response.blob();
+  const name = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? `${key}.csv`;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export const api = {
@@ -78,8 +100,10 @@ export const api = {
     request<PriorityCustomer[]>(`/portfolio/priority-customers${toQuery({ limit, type })}`),
   walletShare: () => request<WalletShare>("/portfolio/wallet-share"),
   recentSignals: (limit = 8) => request<RecentSignal[]>(`/portfolio/recent-signals?limit=${limit}`),
+  activity: () => request<ActivityItem[]>("/portfolio/activity"),
 
   customers: (params: Params) => request<Page<CustomerListItem>>(`/customers${toQuery(params)}`),
+  customerTabCounts: (params: Params) => request<CustomerTabCounts>(`/customers/tab-counts${toQuery(params)}`),
   searchCustomers: (q: string) => request<CustomerSearchHit[]>(`/customers/search${toQuery({ q })}`),
   customer: (id: string) => request<Customer360>(`/customers/${id}`),
   customerInstitution: (id: string, institutionId: string) =>
@@ -109,4 +133,7 @@ export const api = {
     }>("/governance/access"),
   auditLogs: (limit = 60) => request<{ items: AuditLogEntry[]; counts: Record<string, number> }>(`/governance/audit-logs?limit=${limit}`),
   runEngine: () => request<EngineRun>("/engine/run", { method: "POST" }),
+
+  reports: () => request<ReportInfo[]>("/reports"),
+  downloadReport,
 };

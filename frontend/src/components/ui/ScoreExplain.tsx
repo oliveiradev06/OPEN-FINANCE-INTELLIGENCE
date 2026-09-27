@@ -1,45 +1,47 @@
-import { CircleCheck, Info } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { num } from "@/lib/format";
+import { scoreTone } from "@/lib/labels";
+import { toneStyle } from "@/lib/tones";
 import type { Evidence, ScoreFactor } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { HoverPopover } from "./Popover";
 
-export function scoreTone(score: number) {
-  if (score >= 80) return "text-accent-soft";
-  if (score >= 60) return "text-ink";
-  return "text-ink-2";
+/** Score as a tinted badge: green >= 80, amber 60-79, gray below. */
+export function ScoreBadge({ score, size = "md", className }: { score: number; size?: "sm" | "md" | "lg"; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "tnum inline-flex items-center justify-center rounded-md font-bold",
+        size === "sm" && "h-6 min-w-8 px-1.5 text-[12px]",
+        size === "md" && "h-7 min-w-[38px] px-2 text-[13px]",
+        size === "lg" && "h-9 min-w-12 px-2.5 text-[16px]",
+        className,
+      )}
+      style={toneStyle(scoreTone(score))}
+    >
+      {score}
+    </span>
+  );
 }
 
-/** A score is never shown without its explanation: hover or focus reveals factors and evidence. */
-export function ScoreExplain({
+export function ScoreDetails({
   score,
   title,
   factors,
   reasons,
-  size = "md",
 }: {
   score: number;
   title?: string;
   factors?: ScoreFactor[];
   reasons?: Evidence[] | string[];
-  size?: "sm" | "md" | "lg";
 }) {
-  const textSize = { sm: "text-[13px]", md: "text-[15px]", lg: "text-[22px]" }[size];
   const reasonTexts = (reasons ?? []).map((r) => (typeof r === "string" ? r : r.text)).slice(0, 4);
   return (
-    <HoverPopover
-      width={340}
-      trigger={
-        <span className="inline-flex items-center gap-1">
-          <span className={cn("tnum font-semibold", textSize, scoreTone(score))}>{score}</span>
-          <Info className="size-3 text-ink-3" aria-hidden="true" />
-        </span>
-      }
-    >
+    <>
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <div className="text-[12.5px] font-medium text-ink-2">{title ?? "Opportunity Score"}</div>
+        <div className="text-[12.5px] font-semibold text-ink-2">{title ?? "Opportunity Score"}</div>
         <div className="text-[13px] text-ink-3">
-          <span className="text-[18px] font-semibold text-ink">{score}</span> / 100
+          <span className="text-[18px] font-bold text-ink">{score}</span> / 100
         </div>
       </div>
       {factors && factors.length > 0 && (
@@ -49,11 +51,11 @@ export function ScoreExplain({
               <div className="flex items-baseline justify-between gap-2 text-[12px]">
                 <span className="text-ink-2">{f.label}</span>
                 <span className="tnum text-ink-3">
-                  <span className="font-medium text-ink">{num(f.points, 1)}</span>/{f.max_points}
+                  <span className="font-semibold text-ink">{num(f.points, 1)}</span>/{f.max_points}
                 </span>
               </div>
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-blue/15">
-                <div className="h-full rounded-full bg-blue" style={{ width: `${(f.points / f.max_points) * 100}%` }} />
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-primary-soft">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${(f.points / f.max_points) * 100}%` }} />
               </div>
             </div>
           ))}
@@ -70,6 +72,27 @@ export function ScoreExplain({
           ))}
         </div>
       )}
+    </>
+  );
+}
+
+/** A score is never shown without its explanation: hover or focus reveals factors and evidence. */
+export function ScoreExplain({
+  score,
+  title,
+  factors,
+  reasons,
+  size = "md",
+}: {
+  score: number;
+  title?: string;
+  factors?: ScoreFactor[];
+  reasons?: Evidence[] | string[];
+  size?: "sm" | "md" | "lg";
+}) {
+  return (
+    <HoverPopover width={340} trigger={<ScoreBadge score={score} size={size} />}>
+      <ScoreDetails score={score} title={title} factors={factors} reasons={reasons} />
     </HoverPopover>
   );
 }

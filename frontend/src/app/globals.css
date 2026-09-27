@@ -1,43 +1,68 @@
 @import "tailwindcss";
 
 /*
- * Design tokens — dark fintech theme.
- * Chart colors were validated with the dataviz palette checks against the card surface
- * (#0c1220): series blue/orange pass CVD & contrast; context gray #5b6983 = 3.38:1;
- * status colors >= 3.89:1; text tokens >= 5.17:1.
+ * Design tokens — light workspace with a navy sidebar.
+ * UI colors were sampled from the reference layout. Chart colors were validated with the
+ * dataviz palette checks on white: the 7-slot categorical order (blue, orange, aqua, amber,
+ * magenta, violet, red) passes lightness, chroma, CVD and normal-vision separation for
+ * adjacent slots; aqua/amber/magenta sit below 3:1, so every chart that uses them prints
+ * its values (legend with numbers or labels on the marks).
  */
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
 
-  --color-page: #070b14;
-  --color-surface: #0c1220;
-  --color-surface-2: #111a2c;
-  --color-surface-3: #172238;
-  --color-line: #1a2436;
-  --color-line-strong: #25324a;
+  --color-page: #f5f8fc;
+  --color-topbar: #eef3fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f9fc;
+  --color-surface-3: #edf2f8;
+  --color-line: #e5ebf3;
+  --color-line-strong: #d3dce8;
 
-  --color-ink: #e8edf5;
-  --color-ink-2: #a3aec2;
-  --color-ink-3: #7c879c;
+  --color-ink: #111c3a;
+  --color-ink-2: #4a5775;
+  --color-ink-3: #6a768e;
+  --color-heading: #0c2270;
 
-  --color-accent: #10b981; /* primary bank / brand */
-  --color-accent-soft: #34d399;
-  --color-blue: #3987e5; /* series 1 — inflows, single series */
-  --color-orange: #d95926; /* series 2 — outflows */
-  --color-aqua: #199e70; /* series 3 */
-  --color-violet: #9085e9; /* generative AI surfaces */
-  --color-context: #5b6983; /* de-emphasised "rest" in emphasis charts */
+  --color-primary: #146cec;
+  --color-primary-hover: #0e5ed6;
+  --color-primary-soft: #eaf2fe;
+  --color-primary-ink: #1b5fce;
+  --color-pagination: #0b4b9b;
 
-  --color-good: #0ca30c;
-  --color-warning: #fab219;
-  --color-serious: #ec835a;
-  --color-critical: #d03b3b;
+  --color-accent: #0f9d68; /* primary bank / success */
+  --color-accent-strong: #08835a;
+  --color-accent-soft: #dff5ec;
+  --color-accent-ink: #0b7550;
+  --color-context: #8491a6; /* de-emphasised "rest" in emphasis charts */
 
-  --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -18px rgb(0 0 0 / 0.7);
+  --color-nav: #0c2a45;
+  --color-nav-active: #194a7c;
+  --color-nav-ink: #c6d4e7;
 
-  --animate-fade-in: fade-in 0.35s ease-out both;
-  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --color-ai: #6547d6;
+  --color-ai-soft: #f1edfd;
+
+  --color-good: #12925c;
+  --color-warning: #d98b06;
+  --color-serious: #e8704f;
+  --color-critical: #d93b3b;
+
+  /* categorical series, fixed order */
+  --color-series-blue: #2a78d6;
+  --color-series-orange: #eb6834;
+  --color-series-aqua: #1baf7a;
+  --color-series-amber: #eda100;
+  --color-series-magenta: #e87ba4;
+  --color-series-violet: #4a3aa7;
+  --color-series-red: #e34948;
+
+  --shadow-card: 0 1px 2px rgb(16 32 64 / 0.04), 0 6px 16px -10px rgb(16 32 64 / 0.1);
+  --shadow-pop: 0 18px 40px -16px rgb(12 34 80 / 0.28), 0 2px 6px rgb(12 34 80 / 0.06);
+
+  --animate-fade-in: fade-in 0.3s ease-out both;
+  --animate-rise: rise 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-slide-in: slide-in 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 
   @keyframes fade-in {
@@ -55,7 +80,7 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -72,12 +97,12 @@ body {
 }
 
 ::selection {
-  background: rgb(16 185 129 / 0.3);
+  background: rgb(20 108 236 / 0.18);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #25324a transparent;
+  scrollbar-color: #c9d3e1 transparent;
 }
 
 /* Numbers that align in columns */
@@ -85,13 +110,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Recharts chrome: recessive hairline grid & muted axis text ---- */
+/* ---- Recharts chrome: hairline grid, muted axis text ---- */
 .recharts-cartesian-grid line {
-  stroke: var(--color-line);
+  stroke: #edf1f6;
 }
 .recharts-cartesian-axis-tick-value {
   fill: var(--color-ink-3);
-  font-size: 11px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 .recharts-cartesian-axis-line,
@@ -108,13 +133,13 @@ body {
 /* ---- React Flow (ecosystem graph) ---- */
 .react-flow {
   --xy-background-color: transparent;
-  --xy-edge-stroke: #25324a;
+  --xy-edge-stroke: #c7d2e1;
   --xy-attribution-background-color: transparent;
-  --xy-controls-button-background-color: var(--color-surface-2);
-  --xy-controls-button-background-color-hover: var(--color-surface-3);
+  --xy-controls-button-background-color: #ffffff;
+  --xy-controls-button-background-color-hover: var(--color-surface-2);
   --xy-controls-button-color: var(--color-ink-2);
   --xy-controls-button-color-hover: var(--color-ink);
-  --xy-controls-button-border-color: var(--color-line-strong);
+  --xy-controls-button-border-color: var(--color-line);
   --xy-controls-box-shadow: none;
 }
 .react-flow__attribution {
@@ -125,10 +150,10 @@ body {
   pointer-events: none;
 }
 .react-flow__edge-textbg {
-  fill: var(--color-surface-2);
+  fill: #ffffff;
 }
 .react-flow__controls {
-  border: 1px solid var(--color-line-strong);
+  border: 1px solid var(--color-line);
   border-radius: 8px;
   overflow: hidden;
 }
