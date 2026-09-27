@@ -76,10 +76,21 @@ class OpportunityBrief(Schema):
     status: str
 
 
+class OpportunityEvent(Schema):
+    timestamp: dt.datetime
+    kind: str  # detected | status_change
+    actor: str
+    role: str | None
+    from_status: str | None
+    to_status: str | None
+    note: str | None
+
+
 class OpportunityDetail(OpportunityOut):
     customer: CustomerSnippet
     series: list[dict[str, Any]]
     related: list[OpportunityBrief]
+    history: list[OpportunityEvent]
     explanation: str
     guardrail: str
 

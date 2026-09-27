@@ -15,6 +15,7 @@ class CustomerListItem(Schema):
     segment: str
     age_range: str
     occupation_category: str
+    state: str
     monthly_income: float
     health_score: int
     health_band: str
@@ -22,6 +23,7 @@ class CustomerListItem(Schema):
     top_opportunity_type: str | None
     opportunities_count: int
     opportunity_value: float
+    opportunity_types: list[str]
     total_assets: float
     total_debt: float
     debt_level: str
@@ -31,6 +33,14 @@ class CustomerListItem(Schema):
     is_anomaly: bool
     segment_id: int | None
     segment_name: str | None
+    consent_status: str  # active | expiring | revoked | none
+
+
+class CustomerTabCounts(Schema):
+    all: int
+    with_opportunities: int
+    with_signals: int
+    new_connections: int
 
 
 class CustomerSearchHit(Schema):
@@ -193,6 +203,66 @@ class AnomalyOut(Schema):
     reasons: list[str]
 
 
+class AssetSlice(Schema):
+    key: str
+    label: str
+    value: float
+    share: float
+
+
+class ProductAccount(Schema):
+    account_id: str
+    institution: InstitutionRef
+    account_type: str
+    label: str
+    balance: float
+    average_balance: float
+    opened_at: dt.date
+
+
+class ProductCard(Schema):
+    card_id: str
+    institution: InstitutionRef
+    brand: str
+    tier: str
+    credit_limit: float
+    monthly_bill: float
+    utilization: float
+
+
+class ProductInvestment(Schema):
+    investment_id: str
+    institution: InstitutionRef
+    investment_type: str
+    label: str
+    product_name: str
+    balance: float
+    risk_category: str
+    liquidity: str
+
+
+class ProductLoan(Schema):
+    loan_id: str
+    institution: InstitutionRef
+    loan_type: str
+    label: str
+    balance: float
+    interest_rate: float
+    installment: float
+    remaining_months: int | None
+    reference_rate: float | None
+    expensive: bool
+
+
+class CustomerProducts(Schema):
+    """Every product the customer holds, across all connected institutions."""
+
+    accounts: list[ProductAccount]
+    cards: list[ProductCard]
+    investments: list[ProductInvestment]
+    loans: list[ProductLoan]
+
+
 class Customer360(Schema):
     customer: CustomerProfile
     metrics: CustomerKpis
@@ -206,6 +276,8 @@ class Customer360(Schema):
     opportunities: list[OpportunityOut]
     signals: list[SignalOut]
     relationship_map: list[RelationshipRow]
+    asset_breakdown: list[AssetSlice]
+    products: CustomerProducts
     last_sync_at: dt.datetime
     reference_month: dt.date
 

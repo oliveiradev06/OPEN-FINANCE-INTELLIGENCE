@@ -15,7 +15,7 @@ from app.core.database import get_db
 from app.core.formatting import normalize_text
 from app.core.security import Analyst, audit, require
 from app.data import reference as ref
-from app.models import Customer, CustomerMetrics, CustomerMonthlyMetric, Opportunity
+from app.models import AuditLog, Customer, CustomerMetrics, CustomerMonthlyMetric, Opportunity
 from app.schemas import OpportunitiesSummary, OpportunityDetail, OpportunityListItem, OpportunityStatusUpdate, Page
 from app.services.ai_insights import explain_opportunity
 from app.services.customer_360 import timeline_rows
@@ -101,8 +101,19 @@ def _detail(db: Session, opp: Opportunity) -> dict:
         .order_by(Opportunity.score.desc())
     ).all()
     payload = opportunity_out(opp)
+    changes = db.scalars(
+        select(AuditLog).where(AuditLog.resource_type == "opportunity", AuditLog.resource_id == opp.opportunity_id,
+                               AuditLog.action == "opportunity.status_change")
+        .order_by(AuditLog.timestamp.desc(), AuditLog.id.desc())
+    ).all()
+    history = [{"timestamp": log.timestamp, "kind": "status_change", "actor": log.actor, "role": log.role,
+                "from_status": (log.details or {}).get("from"), "to_status": (log.details or {}).get("to"),
+                "note": (log.details or {}).get("note")} for log in changes]
+    history.append({"timestamp": opp.created_at, "kind": "detected", "actor": f"Motor v{opp.engine_version}", "role": None,
+                    "from_status": None, "to_status": "new", "note": f"Regra {opp.rule_id}"})
     return {
         **payload,
+        "history": history,
         "customer": {
             "customer_id": customer.customer_id, "name": customer.name, "segment": customer.segment,
             "age_range": customer.age_range, "occupation_category": customer.occupation_category,

@@ -20,7 +20,7 @@ PRIMARY = ref.PRIMARY_INSTITUTION_ID
 PRODUCTS = ("salario", "conta", "cartao", "investimentos", "emprestimo")
 
 
-def _aggregate(db: Session) -> dict[str, dict]:
+def aggregate_by_institution(db: Session) -> dict[str, dict]:
     stats: dict[str, dict] = defaultdict(lambda: {
         "customers": 0, "salary_customers": 0, "account_balance": 0.0, "investment_balance": 0.0,
         "debt_balance": 0.0, "card_spend_monthly": 0.0, "products": Counter(),
@@ -43,7 +43,7 @@ def _aggregate(db: Session) -> dict[str, dict]:
 
 @router.get("")
 def list_institutions(db: Session = Depends(get_db)) -> dict:
-    stats = _aggregate(db)
+    stats = aggregate_by_institution(db)
     total_assets = sum(s["account_balance"] + s["investment_balance"] for s in stats.values()) or 1.0
     total_card = sum(s["card_spend_monthly"] for s in stats.values()) or 1.0
     total_customers = db.scalar(select(func.count()).select_from(Customer)) or 1
@@ -72,7 +72,7 @@ def list_institutions(db: Session = Depends(get_db)) -> dict:
 def institution_detail(institution_id: str, top: int = Query(10, ge=1, le=50), db: Session = Depends(get_db)) -> dict:
     if institution_id not in ref.INSTITUTION_BY_ID:
         raise HTTPException(status_code=404, detail="Instituição não encontrada.")
-    stats = _aggregate(db).get(institution_id)
+    stats = aggregate_by_institution(db).get(institution_id)
     if stats is None:
         raise HTTPException(status_code=404, detail="Nenhum cliente conectado a esta instituição.")
     bs = BalanceSnapshot

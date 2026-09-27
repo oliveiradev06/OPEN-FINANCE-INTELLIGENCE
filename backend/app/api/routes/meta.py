@@ -13,7 +13,20 @@ from app.models import CustomerMetrics, CustomerMonthlyMetric, EngineRun, Segmen
 from app.services.ai_insights import ai_status
 from app.services.behavior_analysis import SIGNAL_TYPES
 from app.services.financial_health import BANDS
+from app.services.opportunity_engine.rules import CDI_MONTHLY_YIELD
 from app.services.serializers import institution_ref
+
+
+def simulation_assumptions() -> dict:
+    """The same reference numbers the engine uses, so a simulation never contradicts an opportunity."""
+    return {
+        "cdi_monthly": CDI_MONTHLY_YIELD,
+        "expensive_debt_rate": ref.EXPENSIVE_DEBT_RATE,
+        "reference_rates": [{"loan_type": k, "label": ref.LOAN_TYPES[k]["label"], "rate": v}
+                            for k, v in ref.PRIMARY_REFERENCE_RATES.items()],
+        "investment_products": [{"type": k, "label": v["label"], "monthly_yield": v["yield"], "liquidity": v["liquidity"],
+                                 "risk": v["risk"]} for k, v in ref.INVESTMENT_TYPES.items()],
+    }
 
 router = APIRouter(prefix="/api", tags=["meta"])
 
@@ -59,4 +72,5 @@ def meta(db: Session = Depends(get_db), analyst: Analyst = Depends(current_analy
                   for k, v in ROLES.items()],
         "permission_labels": PERMISSION_LABELS,
         "ai": ai_status(),
+        "simulation": simulation_assumptions(),
     }

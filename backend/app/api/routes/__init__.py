@@ -1,4 +1,4 @@
-from app.api.routes import analytics, customers, governance, insights, institutions, meta, opportunities, portfolio
+from app.api.routes import analytics, customers, governance, insights, institutions, meta, opportunities, portfolio, reports
 
 ROUTERS = [
     meta.router,
@@ -9,4 +9,5 @@ ROUTERS = [
     institutions.router,
     analytics.router,
     governance.router,
+    reports.router,
 ]

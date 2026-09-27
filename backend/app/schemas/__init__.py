@@ -15,10 +15,11 @@ from app.schemas.opportunity import (
     OpportunityOut,
     OpportunityStatusUpdate,
 )
-from app.schemas.portfolio import InsightOut, PortfolioSummary, PriorityCustomer, RecentSignal, WalletShare
+from app.schemas.portfolio import ActivityItem, InsightOut, PortfolioSummary, PriorityCustomer, RecentSignal, WalletShare
 
 __all__ = [
     "AISummaryOut",
+    "ActivityItem",
     "AskRequest",
     "AskResponse",
     "Customer360",

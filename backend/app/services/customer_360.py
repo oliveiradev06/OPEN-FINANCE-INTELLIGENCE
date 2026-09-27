@@ -97,6 +97,57 @@ def _relationship_map(links: list[CustomerInstitution]) -> list[dict]:
     return rows
 
 
+ASSET_GROUPS = [
+    ("conta", "Conta corrente", "account", ("conta_corrente", "conta_pagamento", "conta_investimento")),
+    ("poupanca", "Poupança", "account", ("poupanca",)),
+    ("renda_fixa", "Renda fixa", "investment", ("cdb", "tesouro", "lci_lca", "fundo_rf")),
+    ("renda_variavel", "Multimercado e ações", "investment", ("multimercado", "acoes")),
+    ("previdencia", "Previdência", "investment", ("previdencia",)),
+]
+
+
+def _asset_breakdown(metrics: CustomerMetrics, accounts: list[Account], investments: list[Investment]) -> list[dict]:
+    """Patrimony by product group. Investments are exact; the month-end account balance (the basis of
+    every other number on the page) is split across account types by their current balances."""
+    weights = defaultdict(float)
+    for a in accounts:
+        weights[a.account_type] += max(a.balance, 0.0)
+    total_weight = sum(weights.values())
+    balance = max(metrics.total_balance, 0.0)
+    values = []
+    for key, label, kind, types in ASSET_GROUPS:
+        if kind == "account":
+            share = sum(weights[t] for t in types) / total_weight if total_weight else (1.0 if key == "conta" else 0.0)
+            value = balance * share
+        else:
+            value = sum(i.balance for i in investments if i.investment_type in types)
+        values.append((key, label, value))
+    total = sum(v for _, _, v in values) or 1.0
+    return [{"key": k, "label": label, "value": round(v, 2), "share": round(v / total, 4)} for k, label, v in values]
+
+
+def _products(accounts: list[Account], cards: list[CreditCard], investments: list[Investment], loans: list[Loan]) -> dict:
+    by_inst = lambda rows: sorted(rows, key=lambda r: (r.institution_id != PRIMARY, r.institution_id))  # noqa: E731
+    return {
+        "accounts": [{"account_id": a.account_id, "institution": institution_ref(a.institution_id), "account_type": a.account_type,
+                      "label": ref.ACCOUNT_TYPE_LABELS.get(a.account_type, a.account_type), "balance": a.balance,
+                      "average_balance": a.average_balance, "opened_at": a.opened_at} for a in by_inst(accounts)],
+        "cards": [{"card_id": c.card_id, "institution": institution_ref(c.institution_id), "brand": c.brand, "tier": c.tier,
+                   "credit_limit": c.credit_limit, "monthly_bill": c.monthly_bill, "utilization": c.utilization}
+                  for c in by_inst(cards)],
+        "investments": [{"investment_id": i.investment_id, "institution": institution_ref(i.institution_id),
+                         "investment_type": i.investment_type, "label": ref.INVESTMENT_TYPES[i.investment_type]["label"],
+                         "product_name": i.product_name, "balance": i.balance, "risk_category": i.risk_category,
+                         "liquidity": i.liquidity} for i in sorted(investments, key=lambda i: -i.balance)],
+        "loans": [{"loan_id": ln.loan_id, "institution": institution_ref(ln.institution_id), "loan_type": ln.loan_type,
+                   "label": ref.LOAN_TYPES[ln.loan_type]["label"], "balance": ln.balance, "interest_rate": ln.interest_rate,
+                   "installment": ln.installment,
+                   "remaining_months": int(ln.remaining_months) if ln.remaining_months is not None else None,
+                   "reference_rate": ref.PRIMARY_REFERENCE_RATES.get(ln.loan_type),
+                   "expensive": ln.interest_rate >= ref.EXPENSIVE_DEBT_RATE} for ln in sorted(loans, key=lambda ln: -ln.balance)],
+    }
+
+
 def _breakdown(income: float, expenses: float, debt: float, investments: float) -> dict:
     return {
         "income": round(income, 2), "expenses": round(expenses, 2), "debt_payments": round(debt, 2),
@@ -124,6 +175,10 @@ def build_customer_360(db: Session, customer_id: str) -> dict | None:
     )
     consents = db.scalars(select(Consent).where(Consent.customer_id == customer_id)).all()
     segment = db.get(Segment, metrics.segment_id) if metrics.segment_id else None
+    accounts = db.scalars(select(Account).where(Account.customer_id == customer_id)).all()
+    cards = db.scalars(select(CreditCard).where(CreditCard.customer_id == customer_id)).all()
+    investments = db.scalars(select(Investment).where(Investment.customer_id == customer_id)).all()
+    loans = db.scalars(select(Loan).where(Loan.customer_id == customer_id)).all()
 
     consent_by_inst = {c.institution_id: c.status for c in consents}
     links_sorted = sorted(links, key=lambda lk: (lk.institution_id != PRIMARY,
@@ -172,6 +227,8 @@ def build_customer_360(db: Session, customer_id: str) -> dict | None:
         "opportunities": [opportunity_out(o) for o in opportunities],
         "signals": [signal_out(s) for s in signals],
         "relationship_map": _relationship_map(links),
+        "asset_breakdown": _asset_breakdown(metrics, accounts, investments),
+        "products": _products(accounts, cards, investments, loans),
         "last_sync_at": metrics.last_sync_at,
         "reference_month": last.month,
     }
