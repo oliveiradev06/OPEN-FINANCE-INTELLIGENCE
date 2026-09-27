@@ -1,243 +1,180 @@
 <div align="center">
 
-<img src="frontend/src/app/icon.svg" width="72" alt="Open Finance Intelligence" />
+<img src="frontend/src/app/icon.svg" width="64" alt="" />
 
-# Open Finance Intelligence
+# OpenFinance Intelligence
 
-**Plataforma de inteligência financeira que transforma dados fragmentados entre instituições em uma visão consolidada do cliente e identifica automaticamente oportunidades financeiras explicáveis.**
+Plataforma para analistas de banco que junta os dados de Open Finance de cada cliente (contas, cartões, investimentos e empréstimos em várias instituições) e aponta oportunidades comerciais, sempre com a explicação de cada número.
 
-FastAPI · PostgreSQL · pandas · scikit-learn · Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · Recharts · React Flow · LLM (opcional)
+FastAPI · PostgreSQL · pandas · scikit-learn · Next.js · React · TypeScript · Tailwind · Recharts · React Flow
 
 </div>
 
-![Dashboard — Portfolio Intelligence](docs/screenshots/dashboard.png)
+![Tela inicial com a visão da carteira](docs/screenshots/inicio.png)
 
-> **Projeto de portfólio com dados 100% sintéticos.** Nenhum dado bancário real, credencial ou informação pessoal é utilizado. O banco principal ("Banco Aurora") é fictício; os nomes das demais instituições servem apenas para ilustrar o ecossistema Open Finance e não indicam qualquer relação com elas.
+> Projeto de portfólio. Todos os dados são sintéticos, gerados por um script do próprio projeto. O "Banco Aurora" é fictício, e os nomes das outras instituições aparecem só para ilustrar o ecossistema.
 
----
+## Sobre o projeto
 
-## Sumário
+Com o Open Finance, o cliente pode autorizar que um banco veja os dados que ele tem em outros bancos. Na prática, isso mostra onde está o dinheiro dele, onde ele gasta e para quem ele deve. O problema é que esses dados chegam espalhados e crus.
 
-- [O problema](#o-problema)
-- [O que a plataforma faz](#o-que-a-plataforma-faz)
-- [Telas](#telas)
-- [Arquitetura](#arquitetura)
-- [Opportunity Engine](#opportunity-engine)
-- [Financial Health, comportamento e Machine Learning](#financial-health-comportamento-e-machine-learning)
-- [IA generativa com guardrails](#ia-generativa-com-guardrails)
-- [Segurança, LGPD e ética](#segurança-lgpd-e-ética)
-- [Como executar](#como-executar)
-- [Testes e qualidade](#testes-e-qualidade)
-- [Estrutura do repositório](#estrutura-do-repositório)
-- [Roadmap](#roadmap)
+A ideia foi montar a ferramenta que um time de inteligência comercial usaria no dia a dia. São 5 mil clientes na carteira e um motor que encontra oportunidades: saldo parado, investimento em outro banco, dívida cara, portabilidade de crédito, cliente prestes a sair. As telas servem para o analista entender cada caso antes de qualquer contato.
 
-## O problema
+Duas regras guiaram tudo:
 
-Com o Open Finance, o cliente pode autorizar o compartilhamento dos seus dados entre instituições. Para o banco, isso revela o que antes era invisível: **onde está o dinheiro do cliente, onde ele gasta, quanto deve e a quem**. Mas os dados chegam fragmentados — contas, cartões, investimentos, empréstimos e transações espalhados por vários bancos.
-
-O Open Finance Intelligence é uma ferramenta interna para **analistas de inteligência comercial** que consolida essa visão para milhares de clientes e responde perguntas como:
-
-- Quais clientes têm **dinheiro parado** em conta corrente?
-- Quem mantém **investimentos relevantes em outras instituições**?
-- Quem paga **juros altos** enquanto tem saldo disponível?
-- Quem concentra **gastos em cartões concorrentes**?
-- Quem está **reduzindo o relacionamento** com o banco (salário migrou, saldo caiu, investimentos saíram)?
-- **Por que** determinada oportunidade foi criada?
-
-O fluxo de uso é: **Carteira → Oportunidades → Clientes prioritários → Customer 360 → Análise financeira → Evidências → Insights**.
-
-## O que a plataforma faz
-
-| Área | Destaques |
-|---|---|
-| **Portfolio Intelligence** | Patrimônio analisado, oportunidades por tipo, participação do banco vs. concorrentes por produto, clientes prioritários (com os motivos do score no hover), mudanças relevantes e insights automáticos. |
-| **Clientes** | Busca (inclusive sem acento) e 11 filtros sincronizados com a URL: score, tipo de oportunidade, instituição, patrimônio, renda, endividamento, nº de bancos, saúde financeira, segmento. |
-| **Customer 360** | Header com Financial Health e Opportunity Score, **grafo do ecossistema financeiro** (React Flow) com drill-down por instituição, onde está o dinheiro, mapa de relacionamento, fluxo de caixa em cascata, oportunidades com evidências, saúde financeira explicada, mudanças de comportamento, timeline em *small multiples* e IA. |
-| **Oportunidades** | 7 tipos, filtros por status/prioridade, detalhe com visualização específica por tipo, composição do score, evidências, ação recomendada e **workflow auditado** (em análise → contatado → convertida/descartada). |
-| **Insights** | 12 insights da carteira gerados a cada execução do motor — cada número abre **exatamente** a lista de clientes que o compõe. |
-| **Instituições** | Share of wallet por instituição, produtos, evolução mensal e sobreposição com clientes que recebem salário no banco. |
-| **Analytics** | Segmentação KMeans nomeada automaticamente, scatter com ênfase por segmento, distribuições, tendência de participação e anomalias (Isolation Forest). |
-| **Configurações** | Regras e parâmetros do motor, execução sob demanda, consentimentos, princípios LGPD, trilha de auditoria, matriz de permissões e guardrails de IA. |
+1. **Nenhum score aparece sem os motivos.** Ao passar o mouse em qualquer score você vê os fatores e as evidências que o formaram.
+2. **A plataforma não decide nada sozinha.** Ela sugere e explica. Aprovar crédito, mudar limite ou ligar para o cliente continua sendo decisão do analista.
 
 ## Telas
 
-| Customer 360 | Detalhe de oportunidade |
+| Login | Clientes |
 |---|---|
-| ![Customer 360](docs/screenshots/customer-360.png) | ![Oportunidade de dívida cara](docs/screenshots/oportunidade.png) |
+| ![Login](docs/screenshots/login.png) | ![Lista de clientes](docs/screenshots/clientes.png) |
 
-| Clientes | Insights |
+| Customer 360 | Oportunidades |
 |---|---|
-| ![Clientes](docs/screenshots/clientes.png) | ![Insights](docs/screenshots/insights.png) |
+| ![Customer 360](docs/screenshots/customer-360.png) | ![Lista de oportunidades](docs/screenshots/oportunidades.png) |
 
-| Analytics | Risco de evasão |
+| Detalhe da oportunidade | Simulador |
 |---|---|
-| ![Analytics](docs/screenshots/analytics.png) | ![Retenção](docs/screenshots/retencao.png) |
+| ![Detalhe da oportunidade](docs/screenshots/oportunidade.png) | ![Simulador](docs/screenshots/simulador.png) |
 
-## Arquitetura
+- **Início:** visão da carteira, distribuição das oportunidades, adoção do Open Finance mês a mês, clientes em destaque e movimentações.
+- **Clientes:** busca, filtros (segmento, score, instituição, patrimônio, renda, endividamento...), abas, favoritos e exportação da lista.
+- **Customer 360:** score e perfil, informações principais, evolução do relacionamento, ecossistema financeiro e distribuição do patrimônio. Tem abas por produto (contas, investimentos, crédito, previdência), o mapa do ecossistema em grafo, o histórico de comportamento e um resumo com IA.
+- **Oportunidades:** lista por categoria, com prioridade, status e mudança de status em lote. O detalhe mostra as evidências, a composição do score, os dados de Open Finance, a ação recomendada e o histórico.
+- **Simulador:** portabilidade de crédito, quitação de dívida cara, migração de investimentos e aplicação de saldo parado, com os números reais do cliente.
+- **Insights, Instituições, Análises, Relatórios e Configurações:** insights automáticos da carteira, participação por instituição, segmentação com KMeans e anomalias, exportações em CSV, além das regras do motor, LGPD, auditoria e permissões.
+
+![Análises](docs/screenshots/analises.png)
+
+## Como funciona por dentro
 
 ```mermaid
 flowchart LR
-    subgraph RAW["Camada bruta (dados Open Finance sintéticos)"]
-        GEN["Gerador sintético<br/>5.000 clientes · 12 instituições · 12 meses"]
-        RAWDB[("contas · cartões · investimentos<br/>empréstimos · ~500 mil transações<br/>saldos mensais · consentimentos")]
-    end
-    subgraph PIPE["Pipeline analítico (pandas · NumPy · scikit-learn)"]
-        ETL["ETL<br/>métricas mensais · grafo cliente↔instituição"]
-        FEAT["Feature engineering<br/>~80 features por cliente"]
-        HEALTH["Financial Health"]
-        BEHAV["Behavior Analysis"]
-        OPP["Opportunity Engine<br/>7 regras explicáveis"]
-        ML["KMeans · Isolation Forest"]
-        INS["Portfolio Insights"]
-    end
-    DB[("PostgreSQL<br/>(SQLite em dev)")]
-    API["FastAPI<br/>REST · RBAC · auditoria"]
-    AI["AI Insight Engine<br/>fatos → linguagem natural"]
-    WEB["Next.js · React<br/>Recharts · React Flow"]
-
-    GEN --> RAWDB --> ETL --> FEAT --> HEALTH & BEHAV & OPP & ML --> INS
-    RAWDB --> DB
-    INS --> DB
-    DB --> API --> WEB
-    API <--> AI
+    GEN["Gerador sintético<br/>5.000 clientes · 12 instituições · 12 meses"] --> RAW[("Dados brutos<br/>contas, cartões, investimentos,<br/>empréstimos, transações, consentimentos")]
+    RAW --> ETL["ETL + features<br/>~80 por cliente"]
+    ETL --> ENG["Motores<br/>saúde financeira · comportamento<br/>oportunidades · KMeans · Isolation Forest"]
+    ENG --> DB[("PostgreSQL<br/>ou SQLite")]
+    DB --> API["FastAPI<br/>permissões e auditoria"]
+    API --> WEB["Next.js"]
+    API <--> AI["IA que explica os fatos"]
 ```
 
-- **Camada bruta → curada → features → motores**: o pipeline roda em lote (como um job diário faria após a sincronização Open Finance) e grava tabelas analíticas prontas para consulta. A API só lê resultados — respostas em dezenas de milissegundos.
-- **Os motores não conhecem a "verdade" do gerador**: os comportamentos latentes (poupador, investidor externo, risco de evasão…) ficam no gerador; as regras precisam **redescobri-los** a partir das transações e saldos, como fariam com dados reais.
-- **IDs estáveis de oportunidade** (`OPP-00001-INV`): reexecutar o motor preserva o status que os analistas já deram.
-- **PostgreSQL em produção, SQLite como fallback** para rodar sem Docker. Cargas grandes usam `COPY` no PostgreSQL.
+O processamento roda em lote, como um job diário rodaria depois da sincronização com o Open Finance:
 
-Detalhes do modelo de dados, endpoints e decisões de projeto: [`docs/arquitetura.md`](docs/arquitetura.md).
+1. Um gerador cria 5 mil clientes com 12 meses de histórico: contas, cartões, investimentos, empréstimos, cerca de 500 mil transações e os consentimentos.
+2. O ETL consolida tudo em métricas mensais por cliente e num grafo cliente ↔ instituição.
+3. Saem umas 80 features por cliente (estabilidade do saldo, participação de outros bancos, comprometimento da renda, variações do trimestre...).
+4. Os motores rodam em cima dessas features: saúde financeira, mudanças de comportamento, as 7 regras de oportunidade, segmentação e anomalias.
+5. O resultado vai para tabelas prontas para consulta. A API só lê o que já foi calculado, então as telas respondem rápido.
 
-## Opportunity Engine
+O gerador sabe quem é "investidor em outro banco" ou "cliente indo embora", mas os motores não têm acesso a isso. Eles precisam redescobrir esses perfis olhando só para saldos e transações, como aconteceria com dados reais.
 
-Motor **baseado em regras explicáveis**: cada regra soma *fatores* (cada um vale no máximo X pontos e é pontuado de 0 a 1 a partir de uma métrica observada). O score é a soma dos pontos — **todo ponto é rastreável até um número** — e nenhuma oportunidade é gravada sem evidências.
+### Motor de oportunidades
 
-| Tipo | Dispara quando… | Principais fatores |
-|---|---|---|
-| **Saldo parado** | saldo de fim de mês ≥ R$ 15 mil, estável em 5 de 6 meses, pouco movimentado e sem dívida cara | valor ocioso, estabilidade, baixo giro, renda recorrente, baixo endividamento |
-| **Investimentos** | ≥ R$ 20 mil investidos fora e ≥ 60% da carteira em outras instituições | volume externo, concentração, estabilidade de renda, dívida, tempo de relacionamento, sobra mensal |
-| **Otimização de dívida** | dívida > 3% a.m. com saldo disponível cobrindo ≥ 50% dela | custo dos juros, cobertura, diferença de taxa, economia em 12 meses |
-| **Crédito (portabilidade)** | empréstimo em concorrente com taxa acima da referência do banco | spread relativo, saldo portável, economia para o cliente, comprometimento de renda |
-| **Migração de gastos** | ≥ 60% dos gastos com cartão fora do banco | participação externa, volume, tendência, vínculo com o banco |
-| **Relacionamento** | salário no banco, mas 2+ categorias (investimentos, cartão, crédito) majoritariamente fora | produtos fora, patrimônio externo, renda, tempo de relacionamento |
-| **Retenção** | combinação de portabilidade de salário, queda de saldo, saída de investimentos e aumento de uso de concorrentes | um fator por sinal |
+Cada regra soma fatores, e cada fator vale até um certo número de pontos. O score é essa soma, então dá para rastrear cada ponto até um número do cliente. Oportunidades abaixo de 45 são descartadas; de 80 para cima têm prioridade alta.
 
-Prioridade: **alta ≥ 80**, média ≥ 60; oportunidades abaixo de 45 não são exibidas. Exemplo real do dataset (persona *João Silva*):
-
-> **Investimentos · 81/100** — R$ 85.000 investidos em BTG (91% da carteira); apenas R$ 8.000 no banco principal; renda estável há 12 meses; parcelas = 7% da renda; 4 anos de relacionamento; sobra média de R$ 3.106/mês.
-
-Detalhes, parâmetros e metodologia: [`docs/motor-de-oportunidades.md`](docs/motor-de-oportunidades.md).
-
-## Financial Health, comportamento e Machine Learning
-
-- **Financial Health Score (0–100)** — seis componentes ponderados, cada um com a métrica e o texto que o explicam: fluxo de caixa (20%), endividamento (20%), liquidez (15%), poupança (15%), investimentos (15%) e estabilidade de renda (15%).
-- **Detecção de mudanças de comportamento** — último trimestre vs. trimestre anterior: portabilidade de salário, saída de investimentos, queda de saldo, aumento de uso de cartão concorrente, aumento de gastos, queda de renda e aumento de dívida — sempre com os valores de antes e depois.
-- **Segmentação (KMeans, k=6)** — sobre renda, patrimônio, participação externa, comprometimento de renda, liquidez e saúde financeira; os clusters recebem nomes de negócio por **atribuição húngara** entre centroides e arquétipos (ex.: *Investidores multibanco*, *Poupadores conservadores*, *Endividados em atenção*).
-- **Anomalias (Isolation Forest)** — variações trimestrais atípicas, com os dois fatores que mais pesaram.
-- **Insights automáticos** — frases como *"357 clientes aumentaram em mais de 30% seus gastos em instituições concorrentes"* ou *"R$ 30 mi estão mantidos como saldo ocioso"*, cada uma ligada à lista exata de clientes.
-
-## IA generativa com guardrails
-
-A IA **não descobre nada — ela explica**. O *AI Insight Engine* monta uma **ficha de fatos** com os resultados dos motores (scores, evidências, sinais, posições por instituição) e só isso é enviado ao modelo:
-
-- **sem nome, ID ou transações** do cliente (minimização LGPD);
-- prompt de sistema proíbe inventar números, instituições ou intenções e qualquer recomendação de crédito;
-- **sem chave de API, um redator determinístico** produz o texto a partir dos mesmos fatos — a plataforma funciona 100% offline;
-- toda resposta informa a **fonte** (LLM ou template) e os **fatos utilizados**; cada uso é auditado.
-
-Recursos: *AI Financial Summary* e *Ask Intelligence* ("Por que esse cliente recebeu score 81?", "Onde estão os recursos do cliente?"). Com `ANTHROPIC_API_KEY` configurada, os textos são gerados pelo modelo definido em `AI_MODEL` (padrão `claude-opus-5`), com *fallback* automático do lado do servidor caso uma solicitação seja recusada.
-
-## Segurança, LGPD e ética
-
-| Princípio | Como está implementado |
+| Tipo | Quando dispara |
 |---|---|
-| Consentimento | Dados de outras instituições só existem com consentimento Open Finance ativo; consentimentos revogados deixam de alimentar a análise. |
-| Finalidade | Uso restrito à finalidade consentida, registrada em cada acesso. |
-| Minimização | Sem CPF, endereço, telefone ou e-mail; faixa etária em vez de data de nascimento; IDs internos. |
-| Rastreabilidade | Auditoria de visualização de cliente, uso de IA, mudança de status e execução do motor. |
-| Controle de acesso | Perfis **analista**, **coordenador** e **auditor**, verificados na API em cada requisição (troque o perfil na barra lateral para ver o efeito). |
-| Decisões humanas | A plataforma **não aprova, nega, limita ou bloqueia nada automaticamente** — fornece evidências para a decisão do analista. |
+| Saldo parado | saldo alto e estável em conta, pouco movimentado |
+| Investimentos | pelo menos R$ 20 mil e 60% da carteira em outras instituições |
+| Otimização de dívida | dívida acima de 3% a.m. com saldo em conta que cobre boa parte dela |
+| Crédito (portabilidade) | empréstimo em outro banco com taxa acima da referência do banco |
+| Migração de gastos | 60% ou mais dos gastos com cartão fora do banco |
+| Relacionamento | salário no banco, mas investimentos, cartão e crédito concentrados fora |
+| Retenção | salário migrou, saldo caiu, investimentos saíram ou uso de concorrentes subiu |
 
-## Como executar
+Um exemplo do dataset é o cliente João Silva, com score 81 em investimentos: tem R$ 85 mil no BTG (91% da carteira) e só R$ 8 mil no banco, renda estável há 12 meses e parcelas que comprometem 7% da renda.
 
-### Com Docker (PostgreSQL + API + web)
+Os parâmetros de cada regra aparecem na tela de Configurações e estão explicados em [docs/motor-de-oportunidades.md](docs/motor-de-oportunidades.md).
+
+### IA
+
+A IA só explica o que os motores já calcularam. Ela recebe uma ficha de fatos sem nome, ID ou transações do cliente, e o prompt proíbe inventar números ou sugerir crédito. Sem chave de API, um redator baseado em templates escreve o texto a partir dos mesmos fatos, então tudo funciona offline. Com `ANTHROPIC_API_KEY` no `backend/.env`, os textos passam a ser gerados pelo Claude (o modelo fica em `AI_MODEL`).
+
+### LGPD e controle de acesso
+
+- Os dados de outras instituições só existem para clientes com consentimento ativo.
+- A base não guarda CPF, endereço, telefone nem e-mail. Os clientes são identificados por um ID interno.
+- Visualização de cliente, uso de IA, mudança de status, exportação e execução do motor ficam registrados na trilha de auditoria.
+- São três perfis (analista, coordenador e auditor), verificados na API em cada requisição. Dá para trocar de perfil no menu do usuário, no canto superior direito, e ver o que cada um pode fazer.
+- O login é simulado: no ambiente de demonstração qualquer senha entra. Em produção isso seria o SSO do banco.
+
+## Rodando localmente
+
+### Windows (o jeito mais fácil)
+
+Dê dois cliques em `iniciar.bat`. Na primeira vez ele instala as dependências (precisa de Python 3.11+ e Node.js 20+). Depois sobe a API e o site e abre o navegador em http://localhost:3000. Para desligar, feche as janelas "OFI - API" e "OFI - Site".
+
+### Pelo terminal
 
 ```bash
-cp .env.example .env        # opcional: defina ANTHROPIC_API_KEY
-docker compose up --build
-```
-
-Na primeira inicialização a API gera o dataset sintético e executa todos os motores (≈1 min). Depois acesse:
-
-- Aplicação: http://localhost:3000
-- API (Swagger): http://localhost:8000/docs
-
-### Local, sem Docker (SQLite)
-
-Requisitos: Python 3.11+ e Node.js 20.9+.
-
-```bash
-# Backend
 cd backend
 python -m venv .venv
-.venv/Scripts/activate          # Windows  (Linux/macOS: source .venv/bin/activate)
+.venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
 pip install -r requirements-dev.txt
-python -m app.pipeline.seed     # gera 5.000 clientes e executa os motores
 uvicorn app.main:app --reload --port 8000
 ```
 
+Em outro terminal:
+
 ```bash
-# Frontend (outro terminal)
 cd frontend
 npm install
-npm run dev                     # http://localhost:3000 (proxy /api → :8000)
+npm run dev
 ```
 
-Opções do seed: `--customers 20000` (carteira maior), `--seed 7` (outro dataset reproduzível), `--reference-date 2026-09-24` e `--rerun` (reexecuta só os motores sobre os dados brutos já gravados).
+Na primeira execução, a API gera os dados sintéticos, o que leva uns 40 segundos. Depois é só abrir http://localhost:3000 e entrar com o e-mail sugerido e qualquer senha.
 
-## Testes e qualidade
+Para gerar os dados de novo com outras opções, use `python -m app.pipeline.seed --customers 20000 --seed 7`. Com `--rerun`, só os motores são reexecutados.
+
+### Com Docker
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+O comando sobe o PostgreSQL, a API e o frontend. A documentação da API fica em http://localhost:8000/docs.
+
+## Testes
 
 ```bash
 cd backend && pytest && ruff check .
 cd frontend && npm run lint && npm run typecheck && npm run build
 ```
 
-- **28 testes** cobrindo gerador (reprodutibilidade, integridade referencial, sinais das transações), regras do motor (disparo, não disparo, score = soma dos fatores, evidências obrigatórias), saúde financeira, API, RBAC, auditoria e a garantia de que **nenhum identificador vai para o LLM**.
-- **CI no GitHub Actions** roda os testes do backend contra **SQLite e PostgreSQL** e lint, typecheck e build do frontend.
-- Paleta de gráficos validada para daltonismo e contraste na superfície escura; nenhum gráfico usa eixo Y duplo (medidas de escalas diferentes viram *small multiples*).
+São 37 testes no backend. Eles cobrem gerador, regras do motor, saúde financeira, API, permissões, auditoria e relatórios, e um deles garante que nenhum identificador do cliente vai para o LLM. O GitHub Actions roda os testes em SQLite e em PostgreSQL e faz lint, checagem de tipos e build do frontend.
 
-## Estrutura do repositório
+As cores dos gráficos foram validadas para daltonismo e contraste, e nenhum gráfico usa dois eixos Y.
+
+## Estrutura
 
 ```
 backend/
   app/
-    api/routes/        portfolio, customers, opportunities, insights, institutions, analytics, governance
-    core/              configuração, banco, segurança (RBAC + auditoria), formatação pt-BR
-    data/              gerador sintético e vocabulário de domínio
-    models/            SQLAlchemy — camada bruta, analítica e de governança
-    pipeline/          ETL, features, orquestração e CLI de seed
-    services/          opportunity_engine/, financial_health, behavior_analysis, ai_insights, portfolio_insights
-    ml/                segmentação (KMeans) e anomalias (Isolation Forest)
+    api/routes/     carteira, clientes, oportunidades, insights, instituições, análises, governança, relatórios
+    core/           configuração, banco, permissões e auditoria, formatação pt-BR
+    data/           gerador sintético e vocabulário do domínio
+    models/         tabelas brutas, analíticas e de governança (SQLAlchemy)
+    pipeline/       ETL, features, orquestração e o comando de seed
+    services/       motor de oportunidades, saúde financeira, comportamento, IA, insights
+    ml/             KMeans e Isolation Forest
   tests/
 frontend/
-  src/app/             páginas (dashboard, clientes, customer 360, oportunidades, insights, instituições, analytics, configurações)
-  src/components/      charts, customer, opportunity, dashboard, layout, ui
-  src/lib/             cliente da API, tipos, formatação, rótulos
-docs/                  arquitetura, motor de oportunidades, roteiro de demonstração, screenshots
-docker-compose.yml
+  src/app/          páginas (login, início, clientes, customer 360, oportunidades, simulador...)
+  src/components/   gráficos, layout, telas do cliente e componentes de interface
+  src/lib/          cliente da API, tipos, formatação, cores e rótulos
+docs/               arquitetura, motor de oportunidades, roteiro de demonstração e prints
+iniciar.bat         abre tudo no Windows com dois cliques
 ```
 
-## Roadmap
+## Próximos passos
 
-- **Modelos de propensão** (qual produto ofertar) treinados sobre o histórico de conversões registrado no workflow.
-- **Forecasting** de saldo e fluxo de caixa por cliente (séries temporais).
-- **Embeddings de clientes** para busca por similaridade ("clientes parecidos com este").
-- Monitoramento de *drift* das features e das taxas de disparo das regras.
-- Autenticação real via SSO/OIDC e *row-level security* por carteira de gerente.
+- Modelos de propensão treinados com as conversões registradas no workflow.
+- Previsão de saldo e fluxo de caixa por cliente.
+- Busca por clientes parecidos (embeddings).
+- Login real via SSO e visibilidade restrita à carteira de cada gerente.
 
-## Documentação
-
-- [Arquitetura, modelo de dados e API](docs/arquitetura.md)
-- [Opportunity Engine, Financial Health e ML](docs/motor-de-oportunidades.md)
-- [Roteiro de demonstração](docs/roteiro-de-demonstracao.md)
+Mais detalhes: [arquitetura e API](docs/arquitetura.md) · [motor de oportunidades](docs/motor-de-oportunidades.md) · [roteiro de demonstração](docs/roteiro-de-demonstracao.md)

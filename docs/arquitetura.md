@@ -99,7 +99,9 @@ Documentação interativa em `http://localhost:8000/docs`.
 | GET | `/api/portfolio/priority-customers` | Clientes prioritários (score ≥ 80), com motivos |
 | GET | `/api/portfolio/wallet-share` | Banco principal vs. outras instituições por produto |
 | GET | `/api/portfolio/recent-signals` | Mudanças de comportamento mais relevantes |
-| GET | `/api/customers` | Lista paginada com filtros |
+| GET | `/api/portfolio/activity` | Movimentações relevantes da tela inicial (conexões, oportunidades, alertas, consentimentos) |
+| GET | `/api/customers` | Lista paginada com filtros (inclui abas: com oportunidades, com alertas, novos, favoritos) |
+| GET | `/api/customers/tab-counts` | Quantos clientes cada aba da lista mostraria, com os outros filtros aplicados |
 | GET | `/api/customers/search` | Busca rápida (Ctrl+K) |
 | GET | `/api/customers/{id}` | Customer 360 completo |
 | GET | `/api/customers/{id}/institutions/{inst}` | Drill-down por instituição |
@@ -112,13 +114,16 @@ Documentação interativa em `http://localhost:8000/docs`.
 | GET | `/api/analytics/overview` | Segmentos, distribuições, scatter, anomalias |
 | GET | `/api/governance/engine` · `/consents` · `/access` · `/audit-logs` | Governança |
 | POST | `/api/engine/run` | Reexecuta os motores (Coordenador) |
+| GET | `/api/reports` · `/api/reports/{relatório}` | Lista de relatórios e exportação em CSV (permissão verificada e registro na auditoria) |
+| GET | `/api/reports/clientes` | Lista de clientes em CSV com os mesmos filtros da tela |
 
-O perfil é simulado pelo cabeçalho `X-Analyst-Role` (`analista`, `coordenador`, `auditor`); em produção viria do SSO do banco.
+O perfil é simulado pelo cabeçalho `X-Analyst-Role` (`analista`, `coordenador`, `auditor`); em produção viria do SSO do banco. O login da interface também é simulado: um cookie de sessão liberado por qualquer senha, conferido pelo `proxy.ts` do Next.js antes de cada página.
 
 ## Decisões de projeto
 
 - **Resultados pré-calculados.** Scores e evidências são calculados no pipeline e servidos prontos: telas rápidas e resultados reproduzíveis entre analistas.
 - **Explicabilidade por construção.** O score é literalmente a soma dos fatores gravados em `score_breakdown`; as evidências são geradas pela mesma regra que calculou o score.
 - **Ficha de fatos para a IA.** O LLM recebe apenas saídas dos motores, pré-formatadas em pt-BR, para que copie valores em vez de calculá-los.
-- **Frontend como cliente da API.** Páginas client-side com TanStack Query (cache, `keepPreviousData` nos filtros), filtros sincronizados com a URL e proxy `/api` pelo Next.js — o navegador nunca fala direto com o backend.
-- **Visualização com método.** Paleta validada (daltonismo e contraste) na superfície escura, forma "ênfase" para banco principal vs. concorrentes, *small multiples* em vez de eixo duplo e valores sempre legíveis sem depender de tooltip.
+- **Frontend como cliente da API.** Páginas client-side com TanStack Query (cache, `keepPreviousData` nos filtros), filtros e abas sincronizados com a URL e proxy `/api` pelo Next.js; o navegador nunca fala direto com o backend.
+- **Visualização com método.** Interface clara com menu lateral azul-marinho. A paleta categórica dos gráficos foi validada para daltonismo e contraste sobre o branco, o banco principal aparece em verde contra as outras instituições em cinza, não há eixo Y duplo e os valores ficam legíveis sem depender de tooltip.
+- **Simulador com as mesmas premissas do motor.** Taxas de referência, rendimento do CDI e rendimentos dos produtos vêm de `/api/meta`, então uma simulação nunca contradiz a oportunidade que a originou.
