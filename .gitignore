@@ -27,3 +27,6 @@ Thumbs.db
 
 # Local tooling
 .claude/
+
+# Atalho local para abrir o projeto no Windows (fica fora do repositório)
+iniciar.bat

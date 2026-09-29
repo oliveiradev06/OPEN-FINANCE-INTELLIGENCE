@@ -103,11 +103,9 @@ A IA só explica o que os motores já calcularam. Ela recebe uma ficha de fatos 
 
 ## Rodando localmente
 
-### Windows (o jeito mais fácil)
+### Sem Docker (SQLite)
 
-Dê dois cliques em `iniciar.bat`. Na primeira vez ele instala as dependências (precisa de Python 3.11+ e Node.js 20+). Depois sobe a API e o site e abre o navegador em http://localhost:3000. Para desligar, feche as janelas "OFI - API" e "OFI - Site".
-
-### Pelo terminal
+Precisa de Python 3.11+ e Node.js 20+.
 
 ```bash
 cd backend
@@ -167,7 +165,6 @@ frontend/
   src/components/   gráficos, layout, telas do cliente e componentes de interface
   src/lib/          cliente da API, tipos, formatação, cores e rótulos
 docs/               arquitetura, motor de oportunidades, roteiro de demonstração e prints
-iniciar.bat         abre tudo no Windows com dois cliques
 ```
 
 ## Próximos passos
